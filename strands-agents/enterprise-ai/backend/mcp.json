@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "d2-quip-mcp-server": {
+      "command": "/opt/homebrew/bin/uv",
+      "args": [
+        "--directory",
+        "/Users/dhapola/Learn/mcp/d2-quip-mcp",
+        "run",
+        "d2-mcp-quip"
+      ],
+      "transport": "stdio"
+    },
+
+    "postgres-mcp-server": {
+      "command": "postgres-mcp",
+      "args": ["--access-mode=restricted"],
+      "env": {
+        "DATABASE_URI": "postgresql://txuser:payapp%402025@localhost:5432/trans_db"
+      }
+    },
+    "awslabs.aws-api-mcp-server": {
+      "command": "uvx",
+      "args": ["awslabs.aws-api-mcp-server@latest"],
+      "env": {
+        "AWS_REGION": "ap-south-1",
+        "AWS_API_MCP_WORKING_DIR": "/Users/dhapola/Learn/temp"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+
+

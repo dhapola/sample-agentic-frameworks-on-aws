@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "name": "Documentation Sync",
+  "description": "Monitors all source files in the repository and triggers documentation updates in README.md when changes are detected",
+  "version": "1",
+  "when": {
+    "type": "userTriggered",
+    "patterns": [
+      "**/*.py",
+      "**/*.js",
+      "**/*.json",
+      "**/requirements.txt",
+      "**/package.json",
+      "**/*.css",
+      "**/*.html",
+      "**/*.sh",
+      "**/*.sql",
+      "**/*.md"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Source files have been modified in this repository. Please review the changes and update the documentation accordingly. Focus on:\n\n1. Update the README.md file to reflect any new features, API changes, or architectural modifications\n2. If there's a /docs folder, update relevant documentation files there as well\n3. Ensure installation instructions, usage examples, and configuration details remain accurate\n4. Update any code examples or snippets that may have changed\n5. Reflect changes in dependencies, environment setup, or deployment procedures\n\nPlease analyze the modified files and provide comprehensive documentation updates that keep the project documentation current and helpful for users and developers."
+  }
+}

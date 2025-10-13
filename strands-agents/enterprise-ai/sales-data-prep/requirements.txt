@@ -1,0 +1,7 @@
+faker
+boto3
+python-dotenv
+tabulate
+pandas
+SQLAlchemy
+psycopg2-binary

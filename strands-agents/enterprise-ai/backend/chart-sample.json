@@ -1,0 +1,161 @@
+{
+    "chart_type": "bar",
+    "caption": "Top 10 Merchants with Highest Transaction Failures in June 2025",
+    "rationale": "A horizontal bar chart is ideal for ranking data as it clearly shows the hierarchy of failed transactions across merchants. The merchant names can be easily read on the y-axis, and the bars provide immediate visual comparison of failure counts.",
+    "chart_configuration": {
+        "options": {
+            "chart": {
+                "type": "bar",
+                "height": 500,
+                "toolbar": {
+                    "show": true
+                }
+            },
+            "plotOptions": {
+                "bar": {
+                    "horizontal": true,
+                    "barHeight": "70%",
+                    "distributed": false
+                }
+            },
+            "colors": ["#FF6B6B"],
+            "dataLabels": {
+                "enabled": true,
+                "style": {
+                    "colors": ["#fff"],
+                    "fontSize": "12px",
+                    "fontWeight": "bold"
+                }
+            },
+            "xaxis": {
+                "categories": [
+                    "Guwahati Handlooms and Sons",
+                    "Shree Ganesh Traders PLC", 
+                    "Bhopal Hardware Group",
+                    "Patna Grocery and Sons",
+                    "Kolkata Books PLC",
+                    "Jaipur Jewels and Sons",
+                    "Bhopal Hardware Ltd",
+                    "Bhopal Hardware and Sons",
+                    "Kolkata Books and Sons",
+                    "Patna Grocery Ltd"
+                ],
+                "title": {
+                    "text": "Number of Failed Transactions"
+                }
+            },
+            "yaxis": {
+                "title": {
+                    "text": "Merchant Names"
+                }
+            },
+            "title": {
+                "text": "Top 10 Merchants - Transaction Failures (June 2025)",
+                "align": "center",
+                "style": {
+                    "fontSize": "16px",
+                    "fontWeight": "bold"
+                }
+            },
+            "tooltip": {
+                "y": {
+                    "title": {
+                        "formatter": "Failed Transactions: "
+                    }
+                },
+                "custom": "function({ series, seriesIndex, dataPointIndex, w }) { const data = w.globals.initialSeries[seriesIndex].data[dataPointIndex]; return '<div class=\"tooltip-content\"><strong>' + w.globals.labels[dataPointIndex] + '</strong><br/>Failed Transactions: ' + data + '<br/>City: ' + w.config.series[0].cities[dataPointIndex] + '<br/>State: ' + w.config.series[0].states[dataPointIndex] + '</div>'; }"
+            },
+            "grid": {
+                "show": true,
+                "borderColor": "#e0e0e0"
+            }
+        },
+        "series": [{
+            "name": "Failed Transactions",
+            "data": [85, 80, 76, 49, 49, 48, 47, 47, 47, 42],
+            "cities": ["Puducherry", "Mumbai", "Panaji", "Hyderabad", "Panaji", "Chennai", "Kavaratti", "Puducherry", "Hyderabad", "Raipur"],
+            "states": ["Puducherry", "Maharashtra", "Goa", "Telangana", "Goa", "Tamil Nadu", "Lakshadweep", "Puducherry", "Telangana", "Chhattisgarh"]
+        }]
+    }
+}
+
+Final Response: {
+    "chart_type": "bar",
+    "caption": "Top 10 Merchants with Highest Transaction Failures in June 2025",
+    "rationale": "A horizontal bar chart is ideal for ranking data as it clearly shows the hierarchy of failed transactions across merchants. The merchant names can be easily read on the y-axis, and the bars provide immediate visual comparison of failure counts.",
+    "chart_configuration": {
+        "options": {
+            "chart": {
+                "type": "bar",
+                "height": 500,
+                "toolbar": {
+                    "show": true
+                }
+            },
+            "plotOptions": {
+                "bar": {
+                    "horizontal": true,
+                    "barHeight": "70%",
+                    "distributed": false
+                }
+            },
+            "colors": ["#FF6B6B"],
+            "dataLabels": {
+                "enabled": true,
+                "style": {
+                    "colors": ["#fff"],
+                    "fontSize": "12px",
+                    "fontWeight": "bold"
+                }
+            },
+            "xaxis": {
+                "categories": [
+                    "Guwahati Handlooms and Sons",
+                    "Shree Ganesh Traders PLC", 
+                    "Bhopal Hardware Group",
+                    "Patna Grocery and Sons",
+                    "Kolkata Books PLC",
+                    "Jaipur Jewels and Sons",
+                    "Bhopal Hardware Ltd",
+                    "Bhopal Hardware and Sons",
+                    "Kolkata Books and Sons",
+                    "Patna Grocery Ltd"
+                ],
+                "title": {
+                    "text": "Number of Failed Transactions"
+                }
+            },
+            "yaxis": {
+                "title": {
+                    "text": "Merchant Names"
+                }
+            },
+            "title": {
+                "text": "Top 10 Merchants - Transaction Failures (June 2025)",
+                "align": "center",
+                "style": {
+                    "fontSize": "16px",
+                    "fontWeight": "bold"
+                }
+            },
+            "tooltip": {
+                "y": {
+                    "title": {
+                        "formatter": "Failed Transactions: "
+                    }
+                },
+                "custom": "function({ series, seriesIndex, dataPointIndex, w }) { const data = w.globals.initialSeries[seriesIndex].data[dataPointIndex]; return '<div class=\"tooltip-content\"><strong>' + w.globals.labels[dataPointIndex] + '</strong><br/>Failed Transactions: ' + data + '<br/>City: ' + w.config.series[0].cities[dataPointIndex] + '<br/>State: ' + w.config.series[0].states[dataPointIndex] + '</div>'; }"
+            },
+            "grid": {
+                "show": true,
+                "borderColor": "#e0e0e0"
+            }
+        },
+        "series": [{
+            "name": "Failed Transactions",
+            "data": [85, 80, 76, 49, 49, 48, 47, 47, 47, 42],
+            "cities": ["Puducherry", "Mumbai", "Panaji", "Hyderabad", "Panaji", "Chennai", "Kavaratti", "Puducherry", "Hyderabad", "Raipur"],
+            "states": ["Puducherry", "Maharashtra", "Goa", "Telangana", "Goa", "Tamil Nadu", "Lakshadweep", "Puducherry", "Telangana", "Chhattisgarh"]
+        }]
+    }
+}

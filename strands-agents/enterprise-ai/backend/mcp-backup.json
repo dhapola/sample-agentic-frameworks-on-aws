@@ -1,0 +1,110 @@
+{
+  "mcpServers": {
+    "postgres-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.postgres-mcp-server@latest",
+        "--resource_arn",
+        "arn:aws:rds:ap-south-1:074598462996:cluster:payments-db",
+        "--secret_arn",
+        "arn:aws:secretsmanager:ap-south-1:074598462996:secret:rds!cluster-f0c68148-fc39-4093-8b9d-604b1f5c3096-Pgol1t",
+        "--database",
+        "paymentsdb",
+        "--region",
+        "ap-south-1",
+        "--readonly",
+        "True"
+      ],
+      "env": {
+        "AWS_PROFILE": "default",
+        "AWS_REGION": "ap-south-1",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": []
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "awslabs.aws-diagram-mcp-server": {
+      "command": "uvx",
+      "args": ["awslabs.aws-diagram-mcp-server"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "autoApprove": [],
+      "disabled": false
+    },
+    "awslabs.cost-explorer-mcp-server": {
+      "command": "uvx",
+      "args": ["awslabs.cost-explorer-mcp-server@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "default"
+      },
+      "disabled": false,
+      "autoApprove": []
+    },
+    "awslabs.cloudwatch-logs-mcp-server": {
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 60,
+      "command": "uvx",
+      "args": ["awslabs.cloudwatch-logs-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "default",
+        "AWS_REGION": "ap-south-1",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "transportType": "stdio"
+    },
+    "clickhouse-mcp-server": {
+      "transport": "stdio",
+      "command": "/opt/homebrew/bin/uv",
+      "args": [
+        "--directory",
+        "/Users/dhapola/Learn/open-source/mcp-clickhouse",
+        "run",
+        "mcp-clickhouse"
+      ],
+      "env": {
+        "CLICKHOUSE_HOST": "ec2-13-203-227-83.ap-south-1.compute.amazonaws.com",
+        "CLICKHOUSE_PORT": "8123",
+        "CLICKHOUSE_SECURE": "false",
+        "CLICKHOUSE_VERIFY": "false",
+        "CLICKHOUSE_CONNECT_TIMEOUT": "30",
+        "CLICKHOUSE_SEND_RECEIVE_TIMEOUT": "30",
+        "CLICKHOUSE_DATABASE": "default",
+        "CLICKHOUSE_USER": "default",
+        "CLICKHOUSE_PASSWORD": ""
+      }
+    },
+    "d2-quip-mcp-server": {
+      "command": "/opt/homebrew/bin/uv",
+      "args": [
+        "--directory",
+        "/Users/dhapola/Learn/mcp/d2-quip-mcp",
+        "run",
+        "d2-mcp-quip"
+      ],
+      "transport": "stdio"
+    }
+  },
+  "postgres-mcp-server": {
+    "command": "postgres-mcp",
+    "args": ["--access-mode=unrestricted"],
+    "env": {
+      "DATABASE_URI": "postgresql://paymentsappuser:payapp%402025@localhost:5432/paymentsdb"
+    }
+  },
+  "awslabs.aws-api-mcp-server": {
+      "command": "uvx",
+      "args": ["awslabs.aws-api-mcp-server@latest"],
+      "env": {
+        "AWS_REGION": "ap-south-1",
+        "AWS_API_MCP_WORKING_DIR": "/Users/dhapola/Learn/temp"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
