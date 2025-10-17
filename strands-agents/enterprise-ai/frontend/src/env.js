@@ -3,7 +3,7 @@ const APP_NAME = "Enterprise AI Assistant";
 const WELCOME_MESSAGE = "I'm your AI Assistant";
 
 // API Configuration
-const API_URL = "http://localhost:8080"; // Flask backend URL
+const API_URL = "http://localhost:5000"; // Flask backend URL
 
 
 const MAX_LENGTH_INPUT_SEARCH = 500;

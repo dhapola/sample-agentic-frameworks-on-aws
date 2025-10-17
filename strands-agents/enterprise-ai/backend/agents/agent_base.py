@@ -3,7 +3,13 @@ from strands import Agent
 from utils.utility import Utility
 from config import Config
 from agents.agent_callback_handler import common_agent_callback_handler
-from strands.types.exceptions import ModelThrottledException
+from strands.types.exceptions import (
+    ContextWindowOverflowException,
+    EventLoopException,
+    MaxTokensReachedException,
+    ModelThrottledException,
+)
+
 
 class AgentBase:
     def __init__(self, thought_queue):
@@ -37,9 +43,10 @@ class AgentBase:
                 )
                 response = agent(user_input)
                 return response, agent
-            except ThrottlingException as e:
+            except ModelThrottledException as e:
                 self.util.log_error(f'Model {model_id} is throttling: {e}')
                 continue
             except Exception as e:
-                self.util.log_error(f'Error in invoke_agent: {e}')
+                self.util.log_error(f'Error in invoke_agent: {e}\nmodel_id: {model_id}\nregion: {self.config.aws_region}')
+                
                 break

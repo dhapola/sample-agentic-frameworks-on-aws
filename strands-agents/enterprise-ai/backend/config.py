@@ -16,7 +16,7 @@ class Config:
 
     @property
     def aws_region(self):
-        return os.getenv('REGION', 'ap-south-1')
+        return os.getenv('REGION', 'us-west-2')
     
 class DevelopmentConfig(Config):
     """Development configuration"""

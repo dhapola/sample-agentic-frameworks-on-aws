@@ -1,10 +1,11 @@
 # Core Flask Framework
-Flask>=2.3.3
-Flask-RESTful>=0.3.10
-Flask-Cors>=4.0.0
+flask
+flask_restful
+flask_cors
 
 # Environment and Configuration
-python-dotenv==1.0.0
+python-dotenv
+emoji
 
 # AI and Agent Framework
 strands-agents
@@ -12,17 +13,17 @@ strands-agents-tools
 langchain-mcp-adapters
 
 # AWS Services
-boto3>=1.34.0
-botocore>=1.34.0
+boto3
+botocore
 
 # Database
-psycopg2-binary>=2.9.9
-SQLAlchemy>=2.0.0
+psycopg2-binary
+SQLAlchemy
 postgres-mcp
 
 # Model Context Protocol
-mcp>=1.0.0
+mcp
 
 # Optional: Remove if not using ClickHouse
-# clickhouse-connect>=0.8.16
+#clickhouse-connect
 emoji

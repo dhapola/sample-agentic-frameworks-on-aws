@@ -159,6 +159,7 @@ class StreamAnswerResource(Resource):
             
         """
         chat_thread = self.chat_history_repo.get_thread_by_id(thread_id, user)
+        print(chat_thread)
         
         if (len(chat_thread['ui_msgs']) < 1):
             chat_thread['thread_title'] = user_input
