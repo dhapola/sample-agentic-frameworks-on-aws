@@ -7,7 +7,7 @@ module "eks" {
   version = "~> 21.0"
 
   name               = var.name
-  kubernetes_version = "1.32"
+  kubernetes_version = "1.33"
 
   iam_role_use_name_prefix = false
   iam_role_name            = "${local.name}-eks-cluster-role"

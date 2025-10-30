@@ -4,7 +4,7 @@ from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent, tool
 from strands.tools.mcp.mcp_client import MCPClient
 from urllib import request
-BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
+BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-haiku-4-5-20251001-v1:0")
 
 # MCP Tools (Access the remote streamable http MCP Server accesible on WEATHER_MCP_URL)
 def get_mcp_tools():
@@ -19,7 +19,7 @@ from strands_tools import current_time
 
 
 # Agent Definition
-def get_agent():
+def weather_agent():
     agent = Agent(
         description="Helpful agent that assists with weather forecasts, weather alerts, and time/date queries for US locations",
         model=BEDROCK_MODEL_ID,
@@ -34,8 +34,8 @@ def get_agent():
     return agent
 
 def main():
-    agent = get_agent()
-    agent("What's the weather forecast for San Francisco two days from now?")
+    agent = weather_agent()
+    agent("Get today's date and based on this provide the weather forecast for San Francisco in 2 days?")
 
 if __name__ == "__main__":
     main()

@@ -1,12 +1,14 @@
 from strands import Agent, tool
 from strands_tools.a2a_client import A2AClientToolProvider
 from strands.multiagent.a2a import A2AServer
-from fastapi import FastAPI
 import uvicorn
+from fastapi import FastAPI
 import logging
 import sys
 import os
-BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
+from src.challenge.hotel_agent import hotel_agent_as_tool
+
+BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-haiku-4-5-20251001-v1:0")
 
 # Configure logging
 logging.basicConfig(
@@ -17,10 +19,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Import Tools from the Strands Agent SDK Community Tools Package
+from strands_tools import current_time
+
 
 # A2A Client as Agent Tool
 @tool
-def a2a_remote_agent_interface(request: str) -> str:
+def weather_agent_as_tool(request: str) -> str:
     """Handle A2A agent connection using A2AClientToolProvider
        Helpful agent that assists with weather forecasts, weather alerts, and time/date queries for US locations
        Leverage tools like: get up to next 7 days weather forecast US city, get weather alert for US state, get current date
@@ -70,59 +75,34 @@ def travel_agent() -> Agent:
         Always check the weather forecast when providing appropriate activity recommendations
         Take into account weather conditions when suggesting outdoor activities
         Recommend things to bring like umbrella, sunscreen lotion, hat, boots, and attire based on weather conditions
+        If you have access to hotel agent, recommend hotels based on location and weather conditions
         """,
-        tools=[a2a_remote_agent_interface]
+        tools=[current_time, weather_agent_as_tool]
     )
     return agent
 
-# Restful API server for multi-agent, useful when exposing using AWS Network Load Balancer
-def run_restapi_server():
-    """Start the FastAPI server"""
-    app = FastAPI()
-
-    @app.get("/healthz")
-    async def health_check():
-        return {"status": "healthy"}
-
-    @app.post("/prompt")
-    async def handle_prompt(request: dict) -> dict:
-        agent = travel_agent()
-        result = agent(request["text"])
-        return {"text": str(result)}
-
-    port = int(os.getenv("FASTAPI_PORT", "3000"))
-    logger.info(f"AI Agent FastAPI server on http://localhost:{port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
-
-# A2A Server for multi-agent, useful when exposing using AWS Network Load Balancer
+# A2A Server for multi-agent
 def run_a2a_server():
     """Start the A2A server"""
-    port = int(os.getenv("A2A_PORT", "9001"))
-    http_url = os.getenv("A2A_URL", f"http://localhost:{port}")
+    host = os.getenv("A2A_HOST", "0.0.0.0")
+    port = int(os.getenv("A2A_PORT", "9000"))
+    http_url = os.getenv("A2A_URL", os.getenv("AGENTCORE_RUNTIME_URL", f"http://localhost:{port}"))
     agent = travel_agent()
-    server = A2AServer(
+    app = FastAPI()
+    @app.get("/ping")
+    def ping():
+        return {"status": "healthy"}
+    a2a_server = A2AServer(
         agent=agent,
         port=port,
-        host="0.0.0.0",
-        http_url=http_url
+        host=host,
+        http_url=http_url,
+        serve_at_root=True  # Serves locally at root (/) regardless of remote URL path complexity
     )
-    try:
-        logger.info(f"A2A AgentCard on http://localhost:{port}/.well-known/agent-card.json")
-        logger.info(f"A2A Server available on http_url:{http_url}")
-        logger.info("Press Ctrl+C to stop the server")
-        server.serve()
-    except KeyboardInterrupt:
-        logger.info("\nShutting down A2A server...")
-        server.stop()
-
-def main():
-    agent = travel_agent()
-    agent("Hello, what can you help me with?")
+    app.mount("/", a2a_server.to_fastapi_app())
+    logger.info(f"A2A AgentCard on http://localhost:{port}/.well-known/agent-card.json")
+    logger.info(f"A2A Server available on http_url:{http_url}")
+    uvicorn.run(app, host=host, port=port)
 
 if __name__ == "__main__":
-    main()
-
-
-# This is how you call the server using curl
-# curl -s -X POST http://localhost:3000/prompt -H "Content-Type: application/json" -d '{"text":"Plan me a for the next 3 days a vacation in Las Vegas"}' | jq -r .text
-
+    run_a2a_server()
