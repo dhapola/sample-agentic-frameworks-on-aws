@@ -52,9 +52,10 @@ Today's date is {date}.
 You will return a single research question that will be used to guide the research.
 
 Guidelines:
-1. Maximize Specificity and Detail
+1. Maximize Specificity but ENSURE CONCISENESS
 - Include all known user preferences and explicitly list key attributes or dimensions to consider.
 - It is important that all details from the user are included in the instructions.
+- Critically, avoid repeating any information and prioritize conciseness in your generation.
 
 2. Fill in Unstated But Necessary Dimensions as Open-Ended
 - If certain attributes are essential for a meaningful output but the user has not provided them, explicitly state that they are open-ended or default to no specific constraint.
@@ -141,12 +142,12 @@ You can use any of the tools provided to you to find resources that can help ans
 </Task>
 
 <Available Tools>
-You have access to two main tools:
-1. **tavily_search**: For conducting web searches to gather information
+You have access to the following tools:
+1. **WebSearchTool**: For conducting web searches to gather information using Google Custom Search. Use this tool to search the web for current information.
 2. **think_tool**: For reflection and strategic planning during research
 {mcp_prompt}
 
-**CRITICAL: Use think_tool after each search to reflect on results and plan next steps. Do not call think_tool with the tavily_search or any other tools. It should be to reflect on the results of the search.**
+**CRITICAL: Use think_tool after each search to reflect on results and plan next steps. Do not call think_tool with the WebSearchTool or any other tools. It should be to reflect on the results of the search.**
 </Available Tools>
 
 <Instructions>
@@ -245,10 +246,11 @@ Here are the findings from the research that you conducted:
 
 Please create a detailed answer to the overall research brief that:
 1. Is well-organized with proper headings (# for title, ## for sections, ### for subsections)
-2. Includes specific facts and insights from the research
-3. References relevant sources using [Title](URL) format
-4. Provides a balanced, thorough analysis. Be as comprehensive as possible, and include all information that is relevant to the overall research question. People are using you for deep research and will expect detailed, comprehensive answers.
-5. Includes a "Sources" section at the end with all referenced links
+2. Is concise and to the point. Avoid repeating information.
+3. Includes specific facts and insights from the research
+4. References relevant sources using [Title](URL) format
+5. Provides a balanced, thorough analysis. Be as comprehensive as possible, and include all information that is relevant to the overall research question. People are using you for deep research and will expect detailed, comprehensive answers.
+6. Includes a "Sources" section at the end with all referenced links
 
 You can structure your report in a number of different ways. Here are some examples:
 

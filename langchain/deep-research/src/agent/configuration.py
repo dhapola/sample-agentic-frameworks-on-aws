@@ -34,17 +34,27 @@ class MCPConfig(BaseModel):
         optional=True,
     )
     """Whether the MCP server requires authentication"""
+    username: Optional[str] = Field(
+        default=None,
+        optional=True,
+    )
+    """Username for basic authentication (for OpenSearch)"""
+    password: Optional[str] = Field(
+        default=None,
+        optional=True,
+    )
+    """Password for basic authentication (for OpenSearch)"""
 
 class Configuration(BaseModel):
     """Main configuration class for the Deep Research agent."""
     
     # General Configuration
     max_structured_output_retries: int = Field(
-        default=3,
+        default=2,
         metadata={
             "x_oap_ui_config": {
                 "type": "number",
-                "default": 3,
+                "default": 2,
                 "min": 1,
                 "max": 10,
                 "description": "Maximum number of retries for structured output calls from models"
@@ -92,11 +102,11 @@ class Configuration(BaseModel):
         }
     )
     max_researcher_iterations: int = Field(
-        default=6,
+        default=3,
         metadata={
             "x_oap_ui_config": {
                 "type": "slider",
-                "default": 6,
+                "default": 3,
                 "min": 1,
                 "max": 10,
                 "step": 1,
@@ -105,11 +115,11 @@ class Configuration(BaseModel):
         }
     )
     max_react_tool_calls: int = Field(
-        default=10,
+        default=4,
         metadata={
             "x_oap_ui_config": {
                 "type": "slider",
-                "default": 10,
+                "default": 4,
                 "min": 1,
                 "max": 30,
                 "step": 1,
@@ -119,11 +129,11 @@ class Configuration(BaseModel):
     )
     # Model Configuration
     summarization_model: str = Field(
-        default="openai:gpt-4.1-mini",
+        default="bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0",
         metadata={
             "x_oap_ui_config": {
                 "type": "text",
-                "default": "openai:gpt-4.1-mini",
+                "default": "bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0",
                 "description": "Model for summarizing research results from Tavily search results"
             }
         }
@@ -151,11 +161,11 @@ class Configuration(BaseModel):
         }
     )
     research_model: str = Field(
-        default="openai:gpt-4.1",
+        default="bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0",
         metadata={
             "x_oap_ui_config": {
                 "type": "text",
-                "default": "openai:gpt-4.1",
+                "default": "bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0",
                 "description": "Model for conducting research. NOTE: Make sure your Researcher Model supports the selected search API."
             }
         }
@@ -171,11 +181,11 @@ class Configuration(BaseModel):
         }
     )
     compression_model: str = Field(
-        default="openai:gpt-4.1",
+        default="bedrock:global.anthropic.claude-sonnet-4-20250514-v1:0",
         metadata={
             "x_oap_ui_config": {
                 "type": "text",
-                "default": "openai:gpt-4.1",
+                "default": "bedrock:global.anthropic.claude-sonnet-4-20250514-v1:0",
                 "description": "Model for compressing research findings from sub-agents. NOTE: Make sure your Compression Model supports the selected search API."
             }
         }
@@ -191,11 +201,11 @@ class Configuration(BaseModel):
         }
     )
     final_report_model: str = Field(
-        default="openai:gpt-4.1",
+        default="bedrock:global.anthropic.claude-sonnet-4-20250514-v1:0",
         metadata={
             "x_oap_ui_config": {
                 "type": "text",
-                "default": "openai:gpt-4.1",
+                "default": "bedrock:global.anthropic.claude-sonnet-4-20250514-v1:0",
                 "description": "Model for writing the final report from all research findings"
             }
         }
@@ -212,17 +222,23 @@ class Configuration(BaseModel):
     )
     # MCP server configuration
     mcp_config: Optional[MCPConfig] = Field(
-        default=None,
+        default_factory=lambda: MCPConfig(
+            url="http://localhost:9200",  # HTTP when security plugin is disabled
+            tools=["WebSearchTool"],
+            auth_required=False,  # No auth when security plugin is disabled
+            username=os.environ.get("MCP_USERNAME"),
+            password=os.environ.get("MCP_PASSWORD")
+        ),
         optional=True,
         metadata={
             "x_oap_ui_config": {
                 "type": "mcp",
-                "description": "MCP server configuration"
+                "description": "MCP server configuration for OpenSearch with Google Custom Search tool"
             }
         }
     )
     mcp_prompt: Optional[str] = Field(
-        default=None,
+        default="Use the WebSearchTool to search the web for current information. This tool provides comprehensive search results from Google Custom Search.",
         optional=True,
         metadata={
             "x_oap_ui_config": {
@@ -244,6 +260,22 @@ class Configuration(BaseModel):
             field_name: os.environ.get(field_name.upper(), configurable.get(field_name))
             for field_name in field_names
         }
+        # Handle MCP configuration from environment variables if not in configurable
+        if "mcp_config" not in configurable and not values.get("mcp_config"):
+            mcp_url = os.environ.get("MCP_URL", "http://localhost:9200")
+            mcp_tools = os.environ.get("MCP_TOOLS", "WebSearchTool").split(",")
+            mcp_auth = os.environ.get("MCP_AUTH_REQUIRED", "false").lower() == "true"
+            mcp_username = os.environ.get("MCP_USERNAME")
+            mcp_password = os.environ.get("MCP_PASSWORD")
+            
+            values["mcp_config"] = MCPConfig(
+                url=mcp_url,
+                tools=mcp_tools,
+                auth_required=mcp_auth,
+                username=mcp_username,
+                password=mcp_password
+            )
+
         return cls(**{k: v for k, v in values.items() if v is not None})
 
     class Config:

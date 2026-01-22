@@ -41,6 +41,7 @@ from agent.state import (
 )
 from agent.utils import (
     anthropic_websearch_called,
+    build_model_config,
     get_all_tools,
     get_api_key_for_model,
     get_model_token_limit,
@@ -78,12 +79,12 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
     
     # Step 2: Prepare the model for structured clarification analysis
     messages = state["messages"]
-    model_config = {
-        "model": configurable.research_model,
-        "max_tokens": configurable.research_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.research_model, config),
-        "tags": ["langsmith:nostream"]
-    }
+    model_config = build_model_config(
+        configurable.research_model,
+        configurable.research_model_max_tokens,
+        config,
+        tags=["langsmith:nostream"]
+    )
     
     # Configure model with structured output and retry logic
     clarification_model = (
@@ -131,12 +132,12 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
     """
     # Step 1: Set up the research model for structured output
     configurable = Configuration.from_runnable_config(config)
-    research_model_config = {
-        "model": configurable.research_model,
-        "max_tokens": configurable.research_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.research_model, config),
-        "tags": ["langsmith:nostream"]
-    }
+    research_model_config = build_model_config(
+        configurable.research_model,
+        configurable.research_model_max_tokens,
+        config,
+        tags=["langsmith:nostream"]
+    )
     
     # Configure model for structured research question generation
     research_model = (
@@ -191,12 +192,12 @@ async def supervisor(state: SupervisorState, config: RunnableConfig) -> Command[
     """
     # Step 1: Configure the supervisor model with available tools
     configurable = Configuration.from_runnable_config(config)
-    research_model_config = {
-        "model": configurable.research_model,
-        "max_tokens": configurable.research_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.research_model, config),
-        "tags": ["langsmith:nostream"]
-    }
+    research_model_config = build_model_config(
+        configurable.research_model,
+        configurable.research_model_max_tokens,
+        config,
+        tags=["langsmith:nostream"]
+    )
     
     # Available tools: research delegation, completion signaling, and strategic thinking
     lead_researcher_tools = [ConductResearch, ResearchComplete, think_tool]
@@ -389,12 +390,12 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
         )
     
     # Step 2: Configure the researcher model with tools
-    research_model_config = {
-        "model": configurable.research_model,
-        "max_tokens": configurable.research_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.research_model, config),
-        "tags": ["langsmith:nostream"]
-    }
+    research_model_config = build_model_config(
+        configurable.research_model,
+        configurable.research_model_max_tokens,
+        config,
+        tags=["langsmith:nostream"]
+    )
     
     # Prepare system prompt with MCP context if available
     researcher_prompt = research_system_prompt.format(
@@ -437,7 +438,7 @@ async def researcher_tools(state: ResearcherState, config: RunnableConfig) -> Co
     
     This function handles various types of researcher tool calls:
     1. think_tool - Strategic reflection that continues the research conversation
-    2. Search tools (tavily_search, web_search) - Information gathering
+    2. Search tools (WebSearchTool) - Information gathering via MCP
     3. MCP tools - External tool integrations
     4. ResearchComplete - Signals completion of individual research task
     
@@ -465,6 +466,7 @@ async def researcher_tools(state: ResearcherState, config: RunnableConfig) -> Co
     
     # Step 2: Handle other tool calls (search, MCP tools, etc.)
     tools = await get_all_tools(config)
+    
     tools_by_name = {
         tool.name if hasattr(tool, "name") else tool.get("name", "web_search"): tool 
         for tool in tools
@@ -524,12 +526,13 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     """
     # Step 1: Configure the compression model
     configurable = Configuration.from_runnable_config(config)
-    synthesizer_model = configurable_model.with_config({
-        "model": configurable.compression_model,
-        "max_tokens": configurable.compression_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.compression_model, config),
-        "tags": ["langsmith:nostream"]
-    })
+    compression_model_config = build_model_config(
+        configurable.compression_model,
+        configurable.compression_model_max_tokens,
+        config,
+        tags=["langsmith:nostream"]
+    )
+    synthesizer_model = configurable_model.with_config(compression_model_config)
     
     # Step 2: Prepare messages for compression
     researcher_messages = state.get("researcher_messages", [])
@@ -624,12 +627,12 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
     
     # Step 2: Configure the final report generation model
     configurable = Configuration.from_runnable_config(config)
-    writer_model_config = {
-        "model": configurable.final_report_model,
-        "max_tokens": configurable.final_report_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.final_report_model, config),
-        "tags": ["langsmith:nostream"]
-    }
+    writer_model_config = build_model_config(
+        configurable.final_report_model,
+        configurable.final_report_model_max_tokens,
+        config,
+        tags=["langsmith:nostream"]
+    )
     
     # Step 3: Attempt report generation with token limit retry logic
     max_retries = 3

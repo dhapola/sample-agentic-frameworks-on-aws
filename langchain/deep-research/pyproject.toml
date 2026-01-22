@@ -1,5 +1,5 @@
 [project]
-name = "aws_deep_research"
+name = "deep_research"
 version = "0.0.16"
 description = "Planning, research, and report generation."
 authors = [

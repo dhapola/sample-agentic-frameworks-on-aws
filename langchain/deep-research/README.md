@@ -65,4 +65,124 @@ Open Deep Research supports a wide range of LLM providers via the [init_chat_mod
 
 #### Search API :mag:
 
-Open Deep Research supports a wide range of search tools. By default it uses the [Tavily](https://www.tavily.com/) search API. Has full MCP compatibility and work native web search for Anthropic and OpenAI. See the `search_api` and `mcp_config` fields in the [configuration.py](https://github.com/langchain-ai/open_deep_research/blob/main/src/open_deep_research/configuration.py) file for more details. This can be accessed via the LangGraph Studio UI. 
+Open Deep Research supports a wide range of search tools. By default it uses the [Tavily](https://www.tavily.com/) search API. Has full MCP compatibility and work native web search for Anthropic and OpenAI. See the `search_api` and `mcp_config` fields in the [configuration.py](https://github.com/langchain-ai/open_deep_research/blob/main/src/open_deep_research/configuration.py) file for more details. This can be accessed via the LangGraph Studio UI.
+
+#### OpenSearch MCP Server :database:
+
+This project supports using OpenSearch as an MCP (Model Context Protocol) server to provide web search capabilities via DuckDuckGo. To set up OpenSearch:
+
+1. **Start OpenSearch with Docker Compose:**
+
+   Create a `docker-compose.yml` file:
+   ```yaml
+   services:
+     opensearch-node1:
+       image: opensearchproject/opensearch:latest
+       container_name: opensearch-node1
+       environment:
+         - cluster.name=opensearch-cluster
+         - node.name=opensearch-node1
+         - discovery.type=single-node
+         - bootstrap.memory_lock=true
+         - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+         - DISABLE_SECURITY_PLUGIN=true
+       ulimits:
+         memlock:
+           soft: -1
+           hard: -1
+         nofile:
+           soft: 65536
+           hard: 65536
+       volumes:
+         - opensearch-data1:/usr/share/opensearch/data
+       ports:
+         - 9200:9200
+       networks:
+         - opensearch-net
+
+   volumes:
+     opensearch-data1:
+
+   networks:
+     opensearch-net:
+   ```
+
+2. **Start OpenSearch:**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Enable the MCP Server:**
+   ```bash
+   curl -X PUT "http://localhost:9200/_cluster/settings" \
+     -H 'Content-Type: application/json' \
+     -d '{"persistent": {"plugins.ml_commons.mcp_server_enabled": "true"}}'
+   ```
+
+4. **Register the DuckDuckGo Tool:**
+   ```bash
+   curl -X POST "http://localhost:9200/_plugins/_ml/mcp/tools/_register" \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "tools": [
+         {
+           "type": "WebSearchTool",
+           "name": "DuckduckgoWebSearchTool",
+           "attributes": {
+             "input_schema": {
+               "type": "object",
+               "properties": {
+                 "engine": {
+                   "type": "string",
+                   "description": "The search engine that will be used by the tool."
+                 },
+                 "query": {
+                   "type": "string",
+                   "description": "The search query parameter that will be used by the engine to perform the search."
+                 },
+                 "next_page": {
+                   "type": "string",
+                   "description": "The search results next page link. If this is provided, the WebSearchTool will fetch the next page results using this link and crawl the links on the page."
+                 }
+               },
+               "required": ["engine", "query"]
+             },
+             "strict": false
+           }
+         }
+       ]
+     }'
+   ```
+
+5. **Configure Environment Variables:**
+
+   Add to your `.env` file:
+   ```bash
+   MCP_URL=http://localhost:9200
+   # Optional: if security plugin is enabled
+   # MCP_USERNAME=admin
+   # MCP_PASSWORD=your_password
+   ```
+
+   **Note:** When `DISABLE_SECURITY_PLUGIN=true` is set in docker-compose, authentication is not required. The default configuration uses `http://localhost:9200` with `auth_required=False`.
+
+6. **Verify Setup:**
+
+   The agent will automatically connect to the MCP server and use the `DuckduckgoWebSearchTool` when `search_api` is set to use MCP tools.
+
+**Important Notes:**
+- The `DISABLE_SECURITY_PLUGIN=true` setting enables HTTP instead of HTTPS, which is suitable for local development only
+- For production, remove `DISABLE_SECURITY_PLUGIN` and use HTTPS with proper authentication
+- MCP server settings and tool registrations persist in OpenSearch volumes
+- If you delete volumes, you'll need to re-enable the MCP server and re-register tools 
+
+
+## Samples
+
+Research Trace:
+- Basic Question https://smith.langchain.com/public/a6d3fb4a-66ec-4683-a747-9bfbfe1a3464/r
+
+Evaluation:
+https://smith.langchain.com/public/c5e7a6ad-fdba-478c-88e6-3a388459ce8b/d
+
+

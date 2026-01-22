@@ -29,5 +29,13 @@ invoice_subagent = create_agent(
 # ------------------------------------------------------------
 # Opensearch E-commerce Subagent
 # ------------------------------------------------------------
+from agents.prompts import opensearch_subagent_prompt
+from agents.tools import opensearch_tools
 
-# TODO: Add Opensearch E-commerce Subagent
+opensearch_subagent = create_agent(
+    llm,
+    tools=opensearch_tools,
+    name="opensearch_ecommerce_subagent",
+    system_prompt=opensearch_subagent_prompt,
+    state_schema=State
+)
