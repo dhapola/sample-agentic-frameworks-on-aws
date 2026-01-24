@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/database/connection.py
+# hypothesis_version: 6.150.3
+
+[2.0, 5000, 10000, 'customerId', 'ping', 'startTime', 'status']

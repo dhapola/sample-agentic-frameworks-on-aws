@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/models/response.py
+# hypothesis_version: 6.150.3
+
+[0.0, 0.88, 0.95, 245.5, '2024-01-01T12:00:00Z', 'accuracy', 'error', 'example', 'individual_metrics', 'input', 'latency', 'output', 'relevance', 'tc_001', 'test_case_id', 'timestamp']

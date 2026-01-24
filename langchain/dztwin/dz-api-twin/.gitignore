@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Environment
+.env
+.env.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build
+dist/
+build/
+*.min.js
+
+# Data
+api-doc-indexer/crawler/data/
+api-doc-indexer/ingester/qdrant_storage/
+
+# Logs
+*.log
+logs/
+
+# api documentation
+api-doc-indexer/crawler/data/

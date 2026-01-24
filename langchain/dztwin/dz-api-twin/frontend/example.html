@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Widget Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f8f9fa;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            line-height: 1.6;
+        }
+        .demo-content {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 30px;
+        }
+        .feature {
+            margin-bottom: 30px;
+        }
+        .feature h2 {
+            color: #007bff;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        code {
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Chat Widget Demo</h1>
+    <p>Click the chat button in the bottom-right corner to start a conversation.</p>
+
+    <div class="demo-content">
+        <div class="feature">
+            <h2>🚀 One-Line Integration</h2>
+            <p>Add this single script tag to any website:</p>
+            <code>&lt;script src="chat-plugin.js"&gt;&lt;/script&gt;</code>
+        </div>
+
+        <div class="feature">
+            <h2>🎨 Customizable</h2>
+            <p>Configure the widget with a simple JavaScript object:</p>
+            <code>window.ChatPluginConfig = { apiUrl: 'http://localhost:3000/api', theme: 'default' };</code>
+        </div>
+
+        <div class="feature">
+            <h2>🤖 Multiple AI Providers</h2>
+            <p>Supports AWS Bedrock, OpenAI, Anthropic, Google Gemini, and Azure OpenAI.</p>
+        </div>
+
+        <div class="feature">
+            <h2>📚 RAG Support</h2>
+            <p>Enhanced with semantic search over your API documentation for accurate, grounded responses.</p>
+        </div>
+
+        <div class="feature">
+            <h2>💬 Streaming Responses</h2>
+            <p>Real-time token-by-token display for a smooth user experience.</p>
+        </div>
+
+        <div class="feature">
+            <h2>🔒 Iframe Isolation</h2>
+            <p>Zero CSS/JS conflicts with your existing website.</p>
+        </div>
+    </div>
+
+    <script>
+        window.ChatPluginConfig = {
+            apiUrl: 'http://localhost:3000/api',
+            position: 'bottom-right',
+            theme: 'default',
+            title: 'AI Assistant',
+            subtitle: 'Ask me anything',
+            placeholder: 'Type your message...',
+            autoOpen: false
+        };
+    </script>
+    <script src="chat-plugin.js"></script>
+</body>
+</html>

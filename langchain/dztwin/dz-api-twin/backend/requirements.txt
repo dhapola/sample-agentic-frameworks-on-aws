@@ -1,0 +1,20 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+
+# LangChain
+langchain
+langchain-core
+langchain-aws
+langchain-openai
+langchain-anthropic
+langchain-google-genai
+
+# AWS
+boto3
+botocore[crt]
+
+# RAG
+qdrant-client

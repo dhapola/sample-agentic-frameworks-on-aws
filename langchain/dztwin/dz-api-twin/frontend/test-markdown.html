@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Test</title>
+    <link rel="stylesheet" href="widget.css">
+    <style>
+        body {
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .message {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Markdown Rendering Test</h1>
+        <div id="output" class="message assistant">
+            <div class="message-content"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        const testMarkdown = `Based on the SageMaker documentation, there are several ways to deploy a model in SageMaker. Here are the main approaches:
+
+## 1. Deploy a Pre-trained Model Using the SageMaker Model Class
+
+This approach is useful when you have a pre-trained model ready to deploy:
+
+\`\`\`python
+from sagemaker import image_uris, model_uris, script_uris
+
+# Select your model
+model_id, model_version = "tensorflow-tc-bert-en-cased-L-12-H-768-A-12-2", "1.0.0"
+instance_type, instance_count = "ml.m5.xlarge", 1
+
+# Use utility functions to retrieve the URIs for:
+# - Model artifacts
+# - Docker images
+# - Inference scripts
+\`\`\`
+
+After obtaining these components, you can create a SageMaker Model and deploy it to an endpoint using the standard \`deploy()\` method.
+
+## 2. Deploy Using ModelBuilder Class (Recommended for Simplicity)
+
+The **ModelBuilder** simplifies the deployment process by handling multiple setup steps automatically, including:
+
+- Choosing the model image
+- Setting up endpoint configuration
+- Coding serialization/deserialization functions
+- Managing model dependencies
+
+**Basic workflow:**
+
+\`\`\`python
+# Build the model
+model = model_builder.build()
+
+# Deploy to an endpoint
+predictor = model.deploy(
+    initial_instance_count=1,
+    instance_type="ml.c6i.xlarge"
+)
+\`\`\`
+
+**Key benefits of ModelBuilder:**
+
+- Creates deployable models in a single step
+- Automatically packages necessary files
+- Includes live logging during deployment
+- Handles integrity checks with HMAC signing
+- Supports local mode for testing
+
+For more detailed information, you can refer to the [SageMaker models documentation](https://sagemaker.readthedocs.io/en/stable/api/inference/model.html) and [Utility APIs](https://sagemaker.readthedocs.io/en/stable/api/utility/index.html).`;
+
+        function formatMarkdown(text) {
+            let html = text;
+            
+            // Code blocks (must be done first)
+            html = html.replace(/```([\w]*)\n([\s\S]*?)```/g, function(match, lang, code) {
+                // Escape HTML in code blocks
+                code = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return '<pre><code>' + code.trim() + '</code></pre>';
+            });
+            
+            // Headers (must be done before paragraphs)
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            
+            // Bold (must be before italic)
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            
+            // Italic
+            html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            
+            // Inline code
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Links
+            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+            
+            // Unordered lists
+            html = html.replace(/^\- (.+)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>[\s\S]+<\/li>)/g, '<ul>$1</ul>');
+            
+            // Line breaks - convert double newlines to paragraph breaks
+            const paragraphs = html.split('\n\n');
+            html = paragraphs.map(para => {
+                // Don't wrap if already has block-level tags
+                if (para.match(/^<(h[1-6]|pre|ul|ol|blockquote|div)/)) {
+                    return para;
+                }
+                // Replace single newlines with <br> within paragraphs
+                para = para.replace(/\n/g, '<br>');
+                return '<p>' + para + '</p>';
+            }).join('\n');
+            
+            return html;
+        }
+
+        const output = document.querySelector('.message-content');
+        output.innerHTML = formatMarkdown(testMarkdown);
+        console.log('Markdown rendered');
+    </script>
+</body>
+</html>

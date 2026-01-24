@@ -66,7 +66,7 @@ def truncate_all_tables():
     
     try:
         # Disable foreign key checks temporarily
-        db.execute_sql("SET session_replication_role = replica;")
+        #db.execute_sql("SET session_replication_role = replica;")
         
         for table in tables_to_truncate:
             try:

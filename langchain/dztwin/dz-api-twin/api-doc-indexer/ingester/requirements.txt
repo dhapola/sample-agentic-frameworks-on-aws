@@ -1,0 +1,12 @@
+qdrant-client
+langchain
+langchain-core
+langchain-aws
+langchain-openai
+langchain-huggingface
+boto3
+pydantic
+pydantic-settings
+python-dotenv
+tqdm
+sentence-transformers

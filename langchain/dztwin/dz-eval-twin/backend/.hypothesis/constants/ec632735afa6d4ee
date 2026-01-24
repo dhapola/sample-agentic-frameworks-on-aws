@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/engine/metrics_calculator.py
+# hypothesis_version: 6.150.3
+
+[0.0, 0.95, 1.0, 1000.0, '[^\\w\\s]', 'a', 'about', 'above', 'after', 'again', 'against', 'an', 'are', 'at', 'be', 'been', 'before', 'being', 'below', 'between', 'by', 'can', 'could', 'did', 'do', 'does', 'down', 'during', 'for', 'from', 'further', 'had', 'has', 'have', 'in', 'into', 'is', 'may', 'might', 'must', 'of', 'off', 'on', 'once', 'out', 'over', 'should', 'the', 'then', 'through', 'to', 'under', 'up', 'was', 'were', 'will', 'with', 'would']

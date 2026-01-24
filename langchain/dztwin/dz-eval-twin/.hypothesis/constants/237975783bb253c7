@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/connectors/http_plugin.py
+# hypothesis_version: 6.150.3
+
+[5.0, 10.0, 500, 1000, 'Accept', 'Authorization', 'Content-Type', 'X-API-Key', 'api_key', 'application/json', 'basic', 'bearer', 'error', 'header_name', 'http', 'input', 'metadata', 'output', 'password', 'token', 'type', 'username']

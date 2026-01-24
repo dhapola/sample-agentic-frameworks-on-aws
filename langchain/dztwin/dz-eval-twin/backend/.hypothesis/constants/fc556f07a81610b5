@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/models/evaluation_run.py
+# hypothesis_version: 6.150.3
+
+[0.87, 0.88, 0.92, 0.95, 0.98, 230.0, 245.5, 380.0, 100, '2024-01-01T12:00:00Z', '2024-01-01T12:05:00Z', 'accuracy', 'app_profile_123', 'average_accuracy', 'average_latency', 'average_relevance', 'completed', 'cust_123456', 'customer_id', 'dataset_123', 'dataset_id', 'end_time', 'example', 'failed', 'failed_test_cases', 'id', 'individual_metrics', 'input', 'latency', 'median_latency', 'metrics', 'output', 'p95_latency', 'pending', 'relevance', 'responses', 'run_123', 'running', 'start_time', 'status', 'success_rate', 'tc_001', 'test_case_id', 'timestamp', 'total_test_cases']

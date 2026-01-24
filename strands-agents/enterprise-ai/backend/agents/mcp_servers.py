@@ -9,7 +9,18 @@ from agents.agent_callback_handler import common_agent_callback_handler
 from config import Config
 from agents.agent_base import AgentBase
 
-model_id = 'apac.anthropic.claude-3-haiku-20240307-v1:0' #'apac.anthropic.claude-3-7-sonnet-20250219-v1:0'
+model_list = [
+    'us.amazon.nova-pro-v1:0',
+    'us.amazon.nova-lite-v1:0',
+    'us.anthropic.claude-3-haiku-20240307-v1:0',
+    'us.anthropic.claude-3-sonnet-20240229-v1:0',
+    'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+    'us.anthropic.claude-3-5-haiku-20241022-v1:0',
+    'us.anthropic.claude-3-5-sonnet-20240620-v1:0',
+    
+    'us.anthropic.claude-3-7-sonnet-20250219-v1:0',
+    'us.anthropic.claude-sonnet-4-20250514-v1:0',
+]
 
 
 class MCPServersAgent(AgentBase):
@@ -52,23 +63,5 @@ class MCPServersAgent(AgentBase):
                                                     models=model_list,
                                                     tools=mcp_tools)
             return response
-
-
-            #self.util.log_data(f'\nmcp_servers_assistant - mcp_tools--> {mcp_tools}')
-            # model = BedrockModel(model_id=model_id, 
-            #                     verbose=True, 
-            #                     temperature=0.3,
-            #                     region_name = self.config.aws_region)
-            # agent = Agent(
-            #     system_prompt=SYSTEM_PROMPT,
-            #     model=model,
-            #     tools=mcp_tools,
-            #     callback_handler=self.agent_callback_handler
-            # )
-
-            # response = agent(user_input)
-            # content = str(response)
-
-            # return content
         
         return mcp_servers_assistant

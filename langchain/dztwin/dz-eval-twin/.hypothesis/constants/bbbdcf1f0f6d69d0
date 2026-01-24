@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/models/customer.py
+# hypothesis_version: 6.150.3
+
+[200, '+1-555-0100', '2024-01-01T00:00:00Z', 'Acme Corporation', 'Contact phone number', 'Creation timestamp', 'admin@acme.com', 'configuration', 'contact_email', 'contact_phone', 'created_at', 'cust_123456', 'default_timeout', 'example', 'id', 'max_concurrent_runs', 'name', 'updated_at']

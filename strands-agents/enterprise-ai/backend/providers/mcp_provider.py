@@ -35,18 +35,24 @@ class MCPProvider:
         mcp_servers = mcp_json.get("mcpServers", {})
         
         for server_name, server_config in mcp_servers.items():
-            client = MCPClient(lambda: stdio_client(
-                                StdioServerParameters(
-                                    command = server_config.get("command"),
-                                    args = server_config.get("args", []),
-                                    env = server_config.get("env", {}))))
+            self.util.log_data(f"Initializing connection with MCP server '{server_name}'")
 
-            client.start()
-            mcp_tools = client.list_tools_sync()
-            self.mcp_servers[server_name]= {
-                    "mcp_client_object": client,
-                    "mcp_tools": mcp_tools
-                    }
+            try:
+                client = MCPClient(lambda: stdio_client(
+                                    StdioServerParameters(
+                                        command = server_config.get("command"),
+                                        args = server_config.get("args", []),
+                                        env = server_config.get("env", {}))))
+
+                client.start()
+                mcp_tools = client.list_tools_sync()
+                self.mcp_servers[server_name]= {
+                        "mcp_client_object": client,
+                        "mcp_tools": mcp_tools
+                        }
+                self.util.log_data(f"✅ MCP server '{server_name}' initialized!")
+            except Exception as e:
+                self.util.log_error(f"MCP Server '{server_name}' initialization failed with error: {str(e)}")
             
         return True
             

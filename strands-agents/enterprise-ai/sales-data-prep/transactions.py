@@ -83,9 +83,9 @@ def get_payment_gateway_ids():
         return []
 
 def generate_transaction_date():
-    """Generate a random transaction date within the specified range (April 1, 2024 to July 31, 2025)"""
+    """Generate a random transaction date within the specified range (April 1, 2024 to November 25, 2025)"""
     start_date = datetime(2024, 4, 1)
-    end_date = datetime(2025, 7, 31)
+    end_date = datetime(2025, 11, 25)
     
     # Calculate the difference in days
     delta_days = (end_date - start_date).days
@@ -119,7 +119,7 @@ def generate_upi_transaction_id():
     suffix = ''.join(random.choices('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', k=8))
     return f"{prefix}-{timestamp}-{suffix}"
 
-def insert_transactions(num_transactions=200000):
+def insert_transactions(num_transactions=1000000):
     try:
         # Get existing IDs from related tables
         terminals_by_zone = get_pos_terminal_ids_by_zone()
@@ -281,4 +281,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "verify":
         verify_transaction_distribution()
     else:
-        insert_transactions(200000)  # Generate 200000 transactions
+        insert_transactions(1000000)  # Generate 1000000 transactions

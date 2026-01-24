@@ -143,14 +143,16 @@ class StreamAnswerResource(Resource):
         # Handle thread management
         chat_thread = None
         
+        #- For aws resources like ec2, rds, lambda and others ->  Use the aws_resource_assistant tool
+
+
         # Define the orchestrator system prompt
         MAIN_SYSTEM_PROMPT = f"""
         You are an assistant that routes queries to specialized agents:
             - For WAF questions ->  Use the waf_logs_assistant tool
             - For my personal task management ->  Use the personal_assistant tool
             - For Payment and Sales analytics ->  Use the sales_analytics_assistant tool
-            - For aws resources like ec2, rds, lambda and others ->  Use the aws_resource_assistant tool
-            - For specialized tasks -> Use mcp_servers_assistant tool
+            - For other specialized tasks -> Use mcp_servers_assistant tool
             - For simple questions, creative tasks, general knowledge that do not require specialized knowledge ->  Answer directly
 
         Rules:
@@ -179,7 +181,7 @@ class StreamAnswerResource(Resource):
             tools=[
                 self.fintech_sales_agent.sales_analytics_assistant_tool(),
                     self.personal_tasks_manager.personal_task_manager_tool(),
-                    self.aws_resource_assistant.aws_resources_tool(),
+                    #self.aws_resource_assistant.aws_resources_tool(),
                     self.mcp_servers_agent.mcp_servers_tool(),
                     self.waf_logs_agent.was_tool()],
 
@@ -202,16 +204,21 @@ class StreamAnswerResource(Resource):
                 messages = orchestrator.messages
                 final_response = messages[-1]['content'][0]['text'] # final response
                 last_message = messages[-2]['content'] # last message from the agent
+                print (f'ℹ️ last message --> {last_message}\n\n {type(last_message)}')
                 for item in last_message:
                     if 'toolResult' in item:
                         tool_result  = item['toolResult']['content'][0]['text']
                         
                         self.util.log_data(f"""📊 Tool Result --> {tool_result}
                                     """)
-
-                        response_json   = json.loads(tool_result)
-                        query_results   = response_json['query_results']
-                        show_graph      = response_json['show_graph']
+                        try:
+                            response_json   = json.loads(tool_result)
+                            query_results   = response_json['query_results']
+                            show_graph      = response_json['show_graph']
+                        except json.JSONDecodeError as ex:
+                            # If not valid JSON or not a dict, use the response as is
+                            self.util.log_error(f'JSONDecodeError in process_agent_response. Details: {str(ex)}')
+                            break
 
                 
                 self.util.log_data(f"""📊 Metrics -->
@@ -222,15 +229,15 @@ class StreamAnswerResource(Resource):
                                     Accumulated metrics: {response.metrics.accumulated_metrics}
                                     """)
                 
-            self.util.log_data(f"✅ Final Response: {final_response}")
+                self.util.log_data(f"✅ Final Response: {final_response}")
             
         except json.JSONDecodeError as ex:
             # If not valid JSON or not a dict, use the response as is
-            self.util.log_error(f'Error in process_agent_response. Details: {str(ex)}')
+            self.util.log_error(f'JSONDecodeError in process_agent_response. Details: {str(ex)}')
             pass
         except TypeError as ex:
              # If not valid JSON or not a dict, use the response as is
-            self.util.log_error(f'Error in process_agent_response. Details: {str(ex)}')
+            self.util.log_error(f'TypeError in process_agent_response. Details: {str(ex)}')
             pass
         
         
@@ -260,6 +267,8 @@ class StreamAnswerResource(Resource):
             "ui_msgs": chat_thread['ui_msgs'],
             "status": "success"
         }
+
+        print(final_data)
         
         #This may not be required
         self.thought_queue.put(json.dumps(final_data))

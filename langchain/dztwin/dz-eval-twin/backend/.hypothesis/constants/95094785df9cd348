@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/config.py
+# hypothesis_version: 6.150.3
+
+[8000, ',', '.env', '0.0.0.0', 'INFO', 'gen_ai_eval_platform', 'utf-8']

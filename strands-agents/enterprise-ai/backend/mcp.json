@@ -13,8 +13,19 @@
       "command": "uvx",
       "args": ["awslabs.aws-api-mcp-server@latest"],
       "env": {
-        "AWS_REGION": "ap-south-1",
+        "AWS_REGION": "us-west-2",
         "AWS_API_MCP_WORKING_DIR": "/Users/dhapola/Learn/temp"
+      },
+      "disabled": false,
+      "autoApprove": []
+    },
+    
+    "awslabs.cost-explorer-mcp-server": {
+      "command": "uvx",
+      "args": ["awslabs.cost-explorer-mcp-server@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "default"
       },
       "disabled": false,
       "autoApprove": []

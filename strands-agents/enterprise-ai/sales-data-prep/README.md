@@ -298,7 +298,7 @@ Transactions are distributed across zones based on realistic market patterns, co
 
 **Transaction Volume**: Modify the number of transactions in `transactions.py`:
 ```python
-insert_transactions(200000)  # Change to desired count
+insert_transactions(1000000)  # Change to desired count
 ```
 
 **Date Range**: Update transaction date generation in `generate_transaction_date()`:

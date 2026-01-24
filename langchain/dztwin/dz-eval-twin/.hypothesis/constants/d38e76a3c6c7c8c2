@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/models/metrics.py
+# hypothesis_version: 6.150.3
+
+[0.0, 0.87, 0.88, 0.92, 0.95, 0.98, 1.0, 230.0, 245.5, 380.0, 100, 'accuracy', 'average_accuracy', 'average_latency', 'average_relevance', 'example', 'failed_test_cases', 'median_latency', 'p95_latency', 'relevance', 'success_rate', 'total_test_cases']

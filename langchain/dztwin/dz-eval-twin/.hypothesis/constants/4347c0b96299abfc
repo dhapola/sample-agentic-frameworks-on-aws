@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/models/application_profile.py
+# hypothesis_version: 6.150.3
+
+[200, '2024-01-01T00:00:00Z', 'Application type', 'Creation timestamp', 'Production Chatbot', 'Profile name', 'agent', 'app_profile_123', 'authentication', 'bearer', 'chatbot', 'connection_config', 'created_at', 'cust_123456', 'custom', 'customer_id', 'endpoint', 'example', 'id', 'name', 'rag', 'retries', 'sk-...', 'timeout', 'token', 'type', 'updated_at', 'workflow']
