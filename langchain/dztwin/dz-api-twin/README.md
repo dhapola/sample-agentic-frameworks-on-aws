@@ -21,6 +21,7 @@ An AI-powered embeddable chat widget with RAG (Retrieval-Augmented Generation) s
 
 ### RAG (Retrieval-Augmented Generation)
 - **Semantic search** - Vector-based search over your documentation
+- **Source attribution** - Automatic citation with clickable documentation links
 - **Multiple embedding providers** - Bedrock Titan, OpenAI, Cohere, HuggingFace
 - **Qdrant vector database** - Efficient similarity search
 - **Reduced hallucinations** - Grounded responses from your docs
@@ -70,7 +71,7 @@ Add to your website:
     apiUrl: 'http://localhost:3000/api',
     position: 'bottom-right',
     theme: 'default',
-    title: 'Chat Support',
+    title: 'API Twin',
     autoOpen: false
   };
 </script>
@@ -219,7 +220,7 @@ CORS_ORIGINS=*
 
 # Logging
 LOG_LEVEL=INFO
-LOG_LLM_REQUESTS=false
+LOG_LLM_REQUESTS=true
 ```
 
 ### Frontend Configuration
@@ -278,7 +279,60 @@ open http://localhost:8000/example.html
 
 ## Troubleshooting
 
-See [backend/TROUBLESHOOTING.md](backend/TROUBLESHOOTING.md) for common issues and solutions.
+### Markdown Not Rendering Properly
+
+**Symptom**: Chat responses appear as bold text in a single heading instead of formatted markdown.
+
+**Cause**: Newlines are being lost during SSE (Server-Sent Events) streaming.
+
+**Solution**: This has been fixed in the latest version. If you still see issues:
+1. Ensure you're running the latest code
+2. Check browser console for errors
+3. Verify `marked.js` loaded successfully (look for "✅ Marked.js loaded successfully" in console)
+4. Clear browser cache and reload
+
+### Source Links Not Appearing
+
+**Symptom**: RAG responses don't include source citations.
+
+**Cause**: RAG might not be properly configured or no relevant documents found.
+
+**Solution**:
+1. Verify RAG is enabled: `RAG_ENABLED=true` in `backend/.env`
+2. Check Qdrant is running: `curl http://localhost:6333/collections`
+3. Verify documents are indexed: `cd api-doc-indexer/ingester && python search.py "test"`
+4. Check backend logs for "RAG search query" messages
+5. Ensure your question relates to indexed documentation
+
+### Streaming Not Working
+
+**Symptom**: Response appears all at once instead of streaming.
+
+**Cause**: SSE connection issues or browser compatibility.
+
+**Solution**:
+1. Check browser console for SSE connection errors
+2. Verify CORS is properly configured in backend
+3. Test with a different browser
+4. Check network tab for `text/event-stream` content type
+
+### Backend Connection Errors
+
+**Symptom**: "Failed to fetch" or connection refused errors.
+
+**Cause**: Backend not running or CORS misconfiguration.
+
+**Solution**:
+1. Verify backend is running: `curl http://localhost:3000/api/health`
+2. Check `CORS_ORIGINS` in `backend/.env` includes your frontend URL
+3. Ensure firewall isn't blocking port 3000
+4. Check backend logs for errors
+
+For more detailed troubleshooting, see component-specific README files:
+- [Backend README](backend/README.md)
+- [Frontend README](frontend/README.md)
+- [Crawler README](api-doc-indexer/crawler/README.md)
+- [Ingester README](api-doc-indexer/ingester/README.md)
 
 ## Tech Stack
 

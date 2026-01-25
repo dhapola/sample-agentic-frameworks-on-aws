@@ -9,9 +9,17 @@ env/
 ENV/
 .venv
 
-# Environment
+# Environment & Secrets
 .env
 .env.local
+.env.production
+.env.staging
+*.key
+*.pem
+*.crt
+*.p12
+secrets/
+credentials/
 
 # IDEs
 .vscode/

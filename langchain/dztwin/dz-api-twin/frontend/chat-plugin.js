@@ -5,13 +5,24 @@
         apiUrl: 'http://localhost:3000/api',
         position: 'bottom-right',
         theme: 'default',
-        title: 'Chat Support',
+        title: 'API Twin',
         subtitle: 'We\'re here to help',
         placeholder: 'Type your message...',
-        autoOpen: false
+        autoOpen: false,
+        allowedOrigins: ['http://localhost:8000', 'http://127.0.0.1:8000'] // Configure allowed origins
     };
 
     const config = { ...defaultConfig, ...(window.ChatPluginConfig || {}) };
+    
+    // Validate origin for postMessage
+    function isAllowedOrigin(origin) {
+        // In development, allow localhost
+        if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+            return true;
+        }
+        // Check against configured allowed origins
+        return config.allowedOrigins.includes(origin);
+    }
 
     // Create FAB
     const fab = document.createElement('button');
@@ -79,6 +90,9 @@
     container.appendChild(iframe);
     document.body.appendChild(fab);
     document.body.appendChild(container);
+    
+    // Initialize fullscreen state
+    container.dataset.fullscreen = 'false';
 
     let isOpen = false;
     let isLoaded = false;
@@ -98,20 +112,39 @@
             '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
     });
 
-    // Message passing
+    // Message passing with origin validation
     window.addEventListener('message', (event) => {
+        console.log('[Chat Plugin] Received message:', event.data, 'from origin:', event.origin);
+        
+        // Validate origin
+        if (!isAllowedOrigin(event.origin)) {
+            console.warn('[Chat Widget] Blocked message from untrusted origin:', event.origin);
+            return;
+        }
+        
+        // Validate message structure
+        if (!event.data || typeof event.data !== 'object') {
+            console.warn('[Chat Widget] Invalid message format');
+            return;
+        }
+        
+        // Handle specific message types
         if (event.data.type === 'CHAT_CLOSE') {
+            console.log('[Chat Plugin] Closing chat');
             fab.click();
         } else if (event.data.type === 'CHAT_TOGGLE_FULLSCREEN') {
+            console.log('[Chat Plugin] Toggling fullscreen');
             toggleFullscreen();
         }
     });
 
     function toggleFullscreen() {
         const isFullscreen = container.dataset.fullscreen === 'true';
+        console.log('[Chat Plugin] toggleFullscreen called, current state:', isFullscreen);
         
         if (isFullscreen) {
             // Return to normal size
+            console.log('[Chat Plugin] Switching to normal size');
             container.style.cssText = `
                 position: fixed;
                 ${config.position.includes('right') ? 'right: 20px;' : 'left: 20px;'}
@@ -130,6 +163,7 @@
             fab.style.display = 'flex';
         } else {
             // Expand to fullscreen
+            console.log('[Chat Plugin] Switching to fullscreen');
             container.style.cssText = `
                 position: fixed;
                 top: 0;
@@ -149,6 +183,8 @@
             container.dataset.fullscreen = 'true';
             fab.style.display = 'none';
         }
+        
+        console.log('[Chat Plugin] New fullscreen state:', container.dataset.fullscreen);
     }
 
     if (config.autoOpen) {

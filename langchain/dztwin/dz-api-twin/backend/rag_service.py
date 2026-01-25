@@ -16,7 +16,11 @@ class RAGService:
         
         if self.enabled:
             try:
-                self.client = QdrantClient(url=config.QDRANT_URL) if config.QDRANT_URL else QdrantClient(":memory:")
+                self.client = QdrantClient(
+                    url=config.QDRANT_URL,
+                    api_key=config.QDRANT_API_KEY,
+                    timeout=30.0
+                ) if config.QDRANT_URL else QdrantClient(":memory:")
                 self.embeddings = BedrockEmbeddings(
                     region_name=config.AWS_REGION,
                     model_id="amazon.titan-embed-text-v2:0"
@@ -62,12 +66,23 @@ class RAGService:
             
             # Format context from results
             context_parts = []
+            sources = []
             for i, result in enumerate(results.points, 1):
                 content = result.payload.get("content", "")
                 url = result.payload.get("url", "")
-                context_parts.append(f"[Source {i}] {content}\nURL: {url}")
+                title = result.payload.get("title", f"Document {i}")
+                
+                # Add content with source reference
+                context_parts.append(f"[Source {i}: {title}]\n{content}")
+                
+                # Collect source for citation
+                sources.append(f"Source {i}: {title} - {url}")
             
-            return "\n\n".join(context_parts)
+            # Combine context with sources list at the end
+            context_text = "\n\n---\n\n".join(context_parts)
+            sources_text = "\n".join(sources)
+            
+            return f"{context_text}\n\n---\n\nSOURCE URLS (include these in your response):\n{sources_text}"
         
         except Exception as e:
             logger.error(f"RAG search error: {e}", exc_info=True)

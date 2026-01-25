@@ -7,9 +7,10 @@ class ChatWidget {
         this.conversationId = this.loadConversationId();
         this.isStreaming = false;
         this.marked = null;
+        this.DOMPurify = null;
         
-        // Load marked.js dynamically
-        this.loadMarked();
+        // Load marked.js and DOMPurify dynamically
+        this.loadDependencies();
         
         this.initElements();
         this.initEventListeners();
@@ -17,8 +18,18 @@ class ChatWidget {
         this.loadHistory();
     }
     
-    async loadMarked() {
+    async loadDependencies() {
         try {
+            // Load DOMPurify for XSS protection
+            const purifyModule = await import('https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.es.mjs');
+            this.DOMPurify = purifyModule.default;
+            console.log('✅ DOMPurify loaded successfully');
+        } catch (error) {
+            console.error('❌ Failed to load DOMPurify:', error);
+        }
+        
+        try {
+            // Load marked.js for markdown parsing
             const markedModule = await import('https://cdn.jsdelivr.net/npm/marked@11.1.1/lib/marked.esm.js');
             this.marked = markedModule.marked;
             this.marked.setOptions({
@@ -38,7 +49,7 @@ class ChatWidget {
         const configStr = params.get('config');
         const defaultConfig = {
             apiUrl: 'http://localhost:3000/api',
-            title: 'Chat Support',
+            title: 'API Twin',
             subtitle: 'We\'re here to help',
             placeholder: 'Type your message...'
         };
@@ -60,6 +71,9 @@ class ChatWidget {
         this.closeBtn = document.getElementById('close-btn');
         this.title = document.getElementById('chat-title');
         this.subtitle = document.getElementById('chat-subtitle');
+        
+        // Initialize expand button state
+        this.expandBtn.dataset.fullscreen = 'false';
     }
 
     initEventListeners() {
@@ -89,12 +103,17 @@ class ChatWidget {
     }
 
     toggleFullscreen() {
+        console.log('[Widget] Sending CHAT_TOGGLE_FULLSCREEN message');
+        console.log('[Widget] Current fullscreen state:', this.expandBtn.dataset.fullscreen);
+        
+        // Send message to parent with proper origin
         window.parent.postMessage({ type: 'CHAT_TOGGLE_FULLSCREEN' }, '*');
         
-        // Update button icon
-        const isFullscreen = this.expandBtn.dataset.fullscreen === 'true';
-        if (isFullscreen) {
-            // Minimize icon
+        // Update button icon - toggle the state
+        const isCurrentlyFullscreen = this.expandBtn.dataset.fullscreen === 'true';
+        
+        if (isCurrentlyFullscreen) {
+            // Currently fullscreen, switching to normal - show expand icon
             this.expandBtn.innerHTML = `
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="15 3 21 3 21 9"></polyline>
@@ -107,7 +126,7 @@ class ChatWidget {
             this.expandBtn.setAttribute('title', 'Expand');
             this.expandBtn.dataset.fullscreen = 'false';
         } else {
-            // Fullscreen icon
+            // Currently normal, switching to fullscreen - show minimize icon
             this.expandBtn.innerHTML = `
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="4 14 10 14 10 20"></polyline>
@@ -120,6 +139,8 @@ class ChatWidget {
             this.expandBtn.setAttribute('title', 'Minimize');
             this.expandBtn.dataset.fullscreen = 'true';
         }
+        
+        console.log('[Widget] New fullscreen state:', this.expandBtn.dataset.fullscreen);
     }
 
     loadConversationId() {
@@ -165,49 +186,55 @@ class ChatWidget {
     }
 
     formatMarkdown(text) {
-        console.log('=== formatMarkdown START ===');
-        console.log('Input text length:', text.length);
-        console.log('First 200 chars:', text.substring(0, 200));
-        console.log('marked.js available:', !!this.marked);
-        
         // Use marked.js if available
         if (this.marked) {
             try {
-                const result = this.marked.parse(text);
-                console.log('✅ Markdown parsed with marked.js');
-                console.log('Output length:', result.length);
-                console.log('First 200 chars of output:', result.substring(0, 200));
-                return result;
+                const rawHtml = this.marked.parse(text);
+                // Sanitize with DOMPurify if available
+                if (this.DOMPurify) {
+                    return this.DOMPurify.sanitize(rawHtml, {
+                        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'hr'],
+                        ALLOWED_ATTR: ['href', 'target', 'rel'],
+                        ALLOW_DATA_ATTR: false,
+                        ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
+                    });
+                }
+                return rawHtml;
             } catch (error) {
                 console.error('❌ Markdown parsing error:', error);
             }
         }
         
-        console.log('⚠️ Using fallback markdown parser');
+        // Fallback: Simple but safe markdown parser
+        return this.fallbackMarkdown(text);
+    }
+    
+    fallbackMarkdown(text) {
+        // Escape HTML to prevent XSS
+        const escapeHtml = (str) => {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        };
         
-        // Simple but effective fallback
-        let html = text;
+        let html = escapeHtml(text);
         
-        // Escape HTML first to prevent XSS, but we'll unescape for our own tags
-        const escapeHtml = (str) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        
-        // Process code blocks first (before escaping)
+        // Process code blocks (preserve escaped HTML inside)
         const codeBlocks = [];
         html = html.replace(/```[\w]*\n([\s\S]*?)```/g, (match, code) => {
             const placeholder = `___CODE_BLOCK_${codeBlocks.length}___`;
-            codeBlocks.push('<pre><code>' + escapeHtml(code.trim()) + '</code></pre>');
+            codeBlocks.push('<pre><code>' + code.trim() + '</code></pre>');
             return placeholder;
         });
         
-        // Process inline code (before escaping)
+        // Process inline code
         const inlineCodes = [];
         html = html.replace(/`([^`]+)`/g, (match, code) => {
             const placeholder = `___INLINE_CODE_${inlineCodes.length}___`;
-            inlineCodes.push('<code>' + escapeHtml(code) + '</code>');
+            inlineCodes.push('<code>' + code + '</code>');
             return placeholder;
         });
         
-        // Now process the rest
         // Headers
         html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
         html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
@@ -219,8 +246,14 @@ class ChatWidget {
         // Italic
         html = html.replace(/\*([^\*]+)\*/g, '<em>$1</em>');
         
-        // Links
-        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        // Links - sanitize URLs
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+            // Only allow http, https, mailto
+            if (/^(https?:|mailto:)/i.test(url)) {
+                return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+            }
+            return text; // Strip invalid links
+        });
         
         // Lists
         html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
@@ -246,11 +279,6 @@ class ChatWidget {
         inlineCodes.forEach((code, i) => {
             html = html.replace(`___INLINE_CODE_${i}___`, code);
         });
-        
-        console.log('✅ Fallback markdown parsing complete');
-        console.log('Output length:', html.length);
-        console.log('First 500 chars of output:', html.substring(0, 500));
-        console.log('=== formatMarkdown END ===');
         
         return html;
     }
@@ -306,11 +334,24 @@ class ChatWidget {
                         this.saveConversationId(chunk);
                     } else {
                         fullResponse += chunk;
-                        contentDiv.innerHTML = this.formatMarkdown(fullResponse);
+                        // Show raw text during streaming to avoid partial markdown parsing
+                        contentDiv.textContent = fullResponse;
                         this.scrollToBottom();
                     }
                 }
             }
+            
+            // Debug: Log the raw response before parsing
+            console.log('=== RAW RESPONSE ===');
+            console.log('Length:', fullResponse.length);
+            console.log('First 500 chars:', fullResponse.substring(0, 500));
+            console.log('Has newlines:', fullResponse.includes('\n'));
+            console.log('Newline count:', (fullResponse.match(/\n/g) || []).length);
+            console.log('Raw text (escaped):', JSON.stringify(fullResponse.substring(0, 200)));
+            
+            // Parse markdown only when streaming is complete
+            contentDiv.innerHTML = this.formatMarkdown(fullResponse);
+            this.scrollToBottom();
         } catch (error) {
             console.error('Chat error:', error);
             console.error('Error details:', {

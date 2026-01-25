@@ -210,6 +210,33 @@ body {
     text-decoration: underline;
 }
 
+/* Source links styling */
+.message.assistant .message-content h2:has(+ ul > li > a),
+.message.assistant .message-content h2:contains("Sources"),
+.message.assistant .message-content h2:contains("Source") {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #e9ecef;
+    font-size: 14px;
+    color: #6c757d;
+    font-weight: 600;
+}
+
+/* Style source list items */
+.message.assistant .message-content ul li a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 0;
+    font-size: 13px;
+}
+
+.message.assistant .message-content ul li a::before {
+    content: "🔗";
+    font-size: 12px;
+    opacity: 0.6;
+}
+
 /* Horizontal rules */
 .message.assistant .message-content hr {
     border: none;

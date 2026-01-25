@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     
     # AWS Bedrock
     AWS_REGION: str = "us-west-2"
-    BEDROCK_MODEL_ID: str = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    BEDROCK_MODEL_ID: str = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     
     # OpenAI
     OPENAI_API_KEY: Optional[str] = None
@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # RAG
     RAG_ENABLED: bool = False
     QDRANT_URL: Optional[str] = None
+    QDRANT_API_KEY: Optional[str] = None
     QDRANT_COLLECTION: str = "api_docs"
     RAG_TOP_K: int = 5
     
@@ -42,7 +43,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FILE: Optional[str] = None  # If set, logs to file
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    LOG_LLM_REQUESTS: bool = False  # Enable detailed LLM request/response logging
+    LOG_LLM_REQUESTS: bool = True  # Enable detailed LLM request/response logging
     
     class Config:
         env_file = ".env"

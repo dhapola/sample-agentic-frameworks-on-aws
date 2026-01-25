@@ -91,7 +91,7 @@ CORS_ORIGINS=*  # Comma-separated list of allowed origins
 LOG_LEVEL=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 LOG_FILE=  # Optional: path to log file (logs/app.log)
 LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
-LOG_LLM_REQUESTS=false  # Enable detailed LLM request/response logging
+LOG_LLM_REQUESTS=true  # Enable detailed LLM request/response logging
 ```
 
 ## Supported AI Providers

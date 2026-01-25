@@ -6,39 +6,72 @@
 - Modern async Python web framework
 - Auto-generated OpenAPI docs (Swagger UI + ReDoc)
 - Pydantic for data validation
+- Security headers middleware for XSS/clickjacking protection
 
 **AI Integration**: LangChain
 - Unified interface across multiple AI providers
 - Streaming support via async generators
 - Provider factory pattern for extensibility
+- System prompts with markdown formatting instructions
+
+**RAG Integration**: 
+- `rag_service.py` - Semantic search over documentation
+- Qdrant vector database integration
+- Context injection into LLM prompts
+- Source attribution in responses
+
+**Security Features**:
+- Input sanitization with prompt injection detection
+- XSS protection via DOMPurify on frontend
+- Security headers (X-Content-Type-Options, X-Frame-Options, etc.)
+- Error message sanitization
+- Origin validation for postMessage
+- UUID validation for conversation IDs
 
 **Dependencies**:
 - `fastapi` - Web framework
 - `uvicorn` - ASGI server
-- `langchain` + provider-specific packages (`langchain-aws`, `langchain-openai`, etc.)
+- `langchain` + provider-specific packages (`langchain-aws`, `langchain-openai`, `langchain-anthropic`, `langchain-google-genai`)
 - `boto3` - AWS SDK for Bedrock
 - `pydantic-settings` - Environment-based configuration
+- `qdrant-client` - Vector database client
 
 **Configuration**: Environment variables via `.env` file
 - Pydantic Settings for type-safe config
 - Provider-specific settings (API keys, model IDs, etc.)
+- RAG configuration (enabled flag, Qdrant URL, collection name, top-k)
+- Logging configuration (level, file, LLM request logging)
 
 ## Frontend
 
 **Stack**: Vanilla JavaScript (ES6+)
-- No framework dependencies (except marked.js for markdown)
+- No framework dependencies (except marked.js and DOMPurify loaded via CDN)
 - Native Web APIs (fetch, postMessage, SSE)
-- Module system for code organization
+- ES6 module system for code organization
 
 **Dependencies**:
-- `marked` - Markdown rendering for bot responses
+- `marked` (v11.1.1) - Markdown rendering for bot responses (CDN)
+- `DOMPurify` (v3.0.8) - XSS protection for rendered HTML (CDN)
 - `terser` - Minification for production builds
 
+**Security Features**:
+- DOMPurify sanitization of all rendered markdown
+- Origin validation for postMessage communication
+- Allowed tags/attributes whitelist for HTML
+- URL scheme validation (http/https/mailto only)
+- Fallback markdown parser with HTML escaping
+
 **Architecture**:
-- `chat-plugin.js` - Entry point, creates FAB and manages iframe
-- `widget.js` - Chat UI logic inside iframe
-- `chat-api.js` - API client with streaming support
-- CSS isolation via iframe
+- `chat-plugin.js` - Entry point, creates FAB and manages iframe lifecycle
+- `widget.js` - Chat UI logic inside iframe, handles streaming and markdown rendering
+- `chat-api.js` - API client with SSE streaming support
+- CSS isolation via iframe prevents conflicts with host page
+
+**Streaming Implementation**:
+- SSE (Server-Sent Events) for real-time token streaming
+- Newline escaping/unescaping for SSE protocol compatibility
+- Progressive rendering with final markdown parsing
+- Error handling with sanitized error messages
 
 ## API Doc Indexer
 
@@ -73,7 +106,6 @@
 - `langchain` + `langchain-core` - AI framework
 - `langchain-aws` - AWS Bedrock embeddings
 - `langchain-openai` - OpenAI embeddings (optional)
-- `langchain-cohere` - Cohere embeddings (optional)
 - `langchain-huggingface` - HuggingFace embeddings (optional)
 - `boto3` - AWS SDK for Bedrock
 - `python-dotenv` - Environment management
@@ -84,22 +116,30 @@
 - `vector_store.py` - Qdrant integration (embedded or server mode)
 - `ingest.py` - Async pipeline with concurrent batch processing
 - `search.py` - CLI tool for semantic search
-- `config.py` - Environment-based configuration
+- `browse.py` - Web UI for browsing indexed documents
 - `diagnose.py` - Data quality analysis tool
 - `benchmark.py` - Performance estimation tool
+- `config.py` - Environment-based configuration
 - Self-contained module with own `.env` file
 
 **Performance**:
-- Async/concurrent processing (5 batches simultaneously)
+- Async/concurrent processing (5 batches simultaneously by default)
 - ThreadPoolExecutor for sync LangChain operations
-- Hash-based point IDs for safe concurrent upserts
+- Hash-based point IDs (MD5) for safe concurrent upserts and deduplication
 - Optimized batch sizes (100 chunks per batch)
+- Semaphore-based concurrency control
 - 12-24x faster than sequential processing
+
+**Chunking Strategy**:
+- Max 1500 characters per chunk (~375 tokens)
+- Paragraph-based splitting with fallback to sentences
+- Word-level splitting for oversized content
+- Preserves context with overlap
+- Validates chunk sizes before embedding
 
 **Embedding Providers**:
 - AWS Bedrock (Titan v2) - Default, 1024 dimensions
 - OpenAI (text-embedding-3-small) - 1536 dimensions
-- Cohere (embed-english-v3.0) - 1024 dimensions
 - HuggingFace (local models) - Variable dimensions
 
 ## Common Commands
@@ -290,3 +330,28 @@ MAX_CONCURRENT_BATCHES=5
 ```
 
 **Note**: Use `QDRANT_USE_EMBEDDED=true` for development/testing only. For production or high-concurrency ingestion, use server mode with Finch/Docker.
+
+## Logging
+
+**Backend Logging**:
+- Structured logging with configurable levels (DEBUG, INFO, WARNING, ERROR)
+- File and console output support
+- LLM request/response logging (optional, controlled by `LOG_LLM_REQUESTS`)
+- Sanitized logging to prevent sensitive data exposure
+- Request tracking with conversation IDs
+- RAG search query logging with document scores
+
+**Log Configuration**:
+```env
+LOG_LEVEL=INFO
+LOG_FILE=logs/backend.log  # Optional file output
+LOG_LLM_REQUESTS=true      # Enable detailed LLM logging
+```
+
+**What Gets Logged**:
+- API requests and responses
+- AI provider initialization
+- RAG search queries and results
+- Conversation creation and retrieval
+- Error traces with sanitized messages
+- Session cleanup operations

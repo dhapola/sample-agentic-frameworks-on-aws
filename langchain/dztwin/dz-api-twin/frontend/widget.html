@@ -3,6 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' https://cdn.jsdelivr.net;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: https:;
+        connect-src 'self' http://localhost:3000 https:;
+        font-src 'self' data:;
+        frame-ancestors 'self' http://localhost:* http://127.0.0.1:*;
+    ">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <title>Chat Widget</title>
     <link rel="stylesheet" href="widget.css">
 </head>
@@ -10,7 +20,7 @@
     <div id="chat-widget">
         <div id="chat-header">
             <div class="header-content">
-                <h3 id="chat-title">Chat Support</h3>
+                <h3 id="chat-title">API Twin</h3>
                 <p id="chat-subtitle">We're here to help</p>
             </div>
             <div class="header-actions">

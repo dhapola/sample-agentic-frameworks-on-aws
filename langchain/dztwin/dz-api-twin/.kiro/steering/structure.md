@@ -16,24 +16,32 @@
 
 ```
 backend/
-├── main.py                  # FastAPI app, REST endpoints
-├── orchestrator.py          # Conversation flow, context management
+├── main.py                  # FastAPI app, REST endpoints, security middleware
+├── orchestrator.py          # Conversation flow, context management, session cleanup
 ├── ai_provider.py           # AI provider implementations (factory pattern)
+├── rag_service.py           # RAG search and context injection
 ├── config.py                # Environment-based configuration (Pydantic)
+├── logger.py                # Structured logging setup
+├── sanitizer.py             # Input/output sanitization utilities
 ├── requirements.txt         # Python dependencies
 ├── .env.example            # Environment template
 ├── .env                    # Local config (gitignored)
 ├── start.sh/bat            # Startup scripts with auto-setup
 ├── test_*.py               # Test scripts
+├── verify_setup.py         # Setup verification script
+├── logs/                   # Log files directory
 ├── Dockerfile              # Container config
 └── docker-compose.yml      # Docker orchestration
 ```
 
 **Key Patterns**:
-- `main.py` - Route definitions, request/response models
-- `orchestrator.py` - Business logic, conversation state
-- `ai_provider.py` - Provider abstraction, LangChain integration
+- `main.py` - Route definitions, request/response models, security middleware
+- `orchestrator.py` - Business logic, conversation state, session TTL management
+- `ai_provider.py` - Provider abstraction, LangChain integration, system prompts
+- `rag_service.py` - Vector search, context formatting, source attribution
 - `config.py` - Single source of truth for configuration
+- `logger.py` - Centralized logging configuration
+- `sanitizer.py` - Security utilities for input validation and error sanitization
 
 ## Frontend Structure
 

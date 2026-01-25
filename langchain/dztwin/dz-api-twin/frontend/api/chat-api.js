@@ -42,7 +42,9 @@ export class ChatAPI {
 
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
-                        yield line.slice(6);
+                        // Unescape newlines that were escaped for SSE protocol
+                        const data = line.slice(6).replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+                        yield data;
                     } else if (line.startsWith('event: done')) {
                         const dataLine = lines[lines.indexOf(line) + 1];
                         if (dataLine && dataLine.startsWith('data: ')) {

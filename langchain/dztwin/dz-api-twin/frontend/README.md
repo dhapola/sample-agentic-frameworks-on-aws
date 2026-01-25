@@ -12,6 +12,7 @@ Vanilla JavaScript embeddable chat widget with iframe isolation and streaming su
 - **Session persistence** - Conversations persist across page reloads
 - **Resizable & fullscreen** - Flexible UI modes
 - **Markdown support** - Rich text formatting with marked.js
+- **Source attribution** - Automatic citation with clickable documentation links
 - **Event-driven** - postMessage API for extensibility
 - **Customizable themes** - 10+ presets with CSS variables
 - **Responsive design** - Mobile and desktop optimized
@@ -51,7 +52,7 @@ Add to any website:
     // Optional
     position: 'bottom-right',              // bottom-right, bottom-left, top-right, top-left
     theme: 'default',                      // Theme name (see themes below)
-    title: 'Chat Support',                 // Header title
+    title: 'API Twin',                 // Header title
     subtitle: 'We\'re here to help',       // Header subtitle
     placeholder: 'Type your message...',   // Input placeholder
     autoOpen: false,                       // Auto-open on page load
