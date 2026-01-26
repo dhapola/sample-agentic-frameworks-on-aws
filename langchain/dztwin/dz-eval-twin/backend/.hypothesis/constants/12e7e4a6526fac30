@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/services/application_profile_service.py
+# hypothesis_version: 6.150.3
+
+[300, 'Endpoint', 'Endpoint is required', 'No updates provided', 'agent', 'authentication', 'chatbot', 'connection_config', 'custom', 'custom_headers', 'endpoint', 'name', 'rag', 'retries', 'timeout', 'workflow']

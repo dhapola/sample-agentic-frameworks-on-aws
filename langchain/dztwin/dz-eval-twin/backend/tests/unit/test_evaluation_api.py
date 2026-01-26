@@ -43,7 +43,8 @@ def mock_repository():
 @pytest.fixture
 def client():
     """Test client for API."""
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture

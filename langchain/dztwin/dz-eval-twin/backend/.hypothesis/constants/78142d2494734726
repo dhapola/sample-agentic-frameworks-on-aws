@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/api/customers.py
+# hypothesis_version: 6.150.3
+
+[200, '+1-555-0100', '/api/customers', '/{customer_id}', 'Acme Corporation', 'Contact phone number', 'CustomerResponse', 'Delete customer', 'Get customer details', 'List all customers', 'Update customer', 'admin@acme.com', 'configuration', 'contact_email', 'contact_phone', 'customers', 'default_timeout', 'example', 'max_concurrent_runs', 'name', 'newadmin@acme.com', 'not found']

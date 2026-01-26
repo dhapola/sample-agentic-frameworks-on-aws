@@ -1,52 +1,24 @@
 """Unit tests for customer API endpoints."""
 
 import pytest
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from fastapi import status
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models.customer import Customer
-
-
-@pytest.fixture
-def mock_customer_service():
-    """Mock customer service for testing."""
-    with patch("app.api.customers.get_customer_service") as mock:
-        service = MagicMock()
-        mock.return_value = service
-        yield service
 
 
 @pytest.fixture
 def client():
     """Test client for API."""
-    return TestClient(app)
-
-
-@pytest.fixture
-def sample_customer():
-    """Sample customer for testing."""
-    return Customer(
-        id="cust_test123",
-        name="Test Corp",
-        contact_email="test@example.com",
-        contact_phone="+1-555-0100",
-        configuration={"max_runs": 5},
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 class TestCreateCustomer:
     """Tests for POST /api/customers endpoint."""
     
-    def test_create_customer_success(self, client, mock_customer_service, sample_customer):
+    def test_create_customer_success(self, client):
         """Test successful customer creation."""
-        mock_customer_service.create_customer = AsyncMock(return_value=sample_customer)
-        
         response = client.post(
             "/api/customers",
             json={
@@ -61,14 +33,15 @@ class TestCreateCustomer:
         data = response.json()
         assert data["name"] == "Test Corp"
         assert data["contact_email"] == "test@example.com"
-        assert data["id"] == "cust_test123"
+        assert data["contact_phone"] == "+1-555-0100"
+        assert data["configuration"] == {"max_runs": 5}
+        assert "id" in data
+        assert data["id"].startswith("cust_")
+        assert "created_at" in data
+        assert "updated_at" in data
     
-    def test_create_customer_validation_error(self, client, mock_customer_service):
+    def test_create_customer_validation_error(self, client):
         """Test customer creation with validation error."""
-        mock_customer_service.create_customer = AsyncMock(
-            side_effect=ValueError("Customer name is required")
-        )
-        
         response = client.post(
             "/api/customers",
             json={
@@ -100,51 +73,54 @@ class TestCreateCustomer:
 class TestListCustomers:
     """Tests for GET /api/customers endpoint."""
     
-    def test_list_customers_success(self, client, mock_customer_service, sample_customer):
+    def test_list_customers_success(self, client):
         """Test successful customer listing."""
-        mock_customer_service.get_all_customers = AsyncMock(
-            return_value=[sample_customer]
-        )
+        # Create test customers
+        client.post("/api/customers", json={"name": "Customer 1", "contact_email": "c1@example.com"})
+        client.post("/api/customers", json={"name": "Customer 2", "contact_email": "c2@example.com"})
         
         response = client.get("/api/customers")
         
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert isinstance(data, list)
-        assert len(data) == 1
-        assert data[0]["id"] == "cust_test123"
+        assert len(data) >= 2
+        names = [c["name"] for c in data]
+        assert "Customer 1" in names
+        assert "Customer 2" in names
     
-    def test_list_customers_empty(self, client, mock_customer_service):
+    def test_list_customers_empty(self, client):
         """Test listing customers when none exist."""
-        mock_customer_service.get_all_customers = AsyncMock(return_value=[])
-        
         response = client.get("/api/customers")
         
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert isinstance(data, list)
-        assert len(data) == 0
 
 
 class TestGetCustomer:
     """Tests for GET /api/customers/{customer_id} endpoint."""
     
-    def test_get_customer_success(self, client, mock_customer_service, sample_customer):
+    def test_get_customer_success(self, client):
         """Test successful customer retrieval."""
-        mock_customer_service.get_customer = AsyncMock(return_value=sample_customer)
+        # Create a customer first
+        create_response = client.post(
+            "/api/customers",
+            json={"name": "Get Test Corp", "contact_email": "gettest@example.com"}
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+        customer_id = create_response.json()["id"]
         
-        response = client.get("/api/customers/cust_test123")
+        response = client.get(f"/api/customers/{customer_id}")
         
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["id"] == "cust_test123"
-        assert data["name"] == "Test Corp"
+        assert data["id"] == customer_id
+        assert data["name"] == "Get Test Corp"
     
-    def test_get_customer_not_found(self, client, mock_customer_service):
+    def test_get_customer_not_found(self, client):
         """Test getting non-existent customer."""
-        mock_customer_service.get_customer = AsyncMock(return_value=None)
-        
-        response = client.get("/api/customers/nonexistent")
+        response = client.get("/api/customers/cust_nonexistent123")
         
         assert response.status_code == status.HTTP_404_NOT_FOUND
         data = response.json()
@@ -155,30 +131,30 @@ class TestGetCustomer:
 class TestUpdateCustomer:
     """Tests for PUT /api/customers/{customer_id} endpoint."""
     
-    def test_update_customer_success(self, client, mock_customer_service, sample_customer):
+    def test_update_customer_success(self, client):
         """Test successful customer update."""
-        updated_customer = sample_customer.model_copy()
-        updated_customer.name = "Updated Corp"
-        
-        mock_customer_service.update_customer = AsyncMock(return_value=updated_customer)
+        # Create a customer first
+        create_response = client.post(
+            "/api/customers",
+            json={"name": "Update Original Corp", "contact_email": "updateoriginal@example.com"}
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+        customer_id = create_response.json()["id"]
         
         response = client.put(
-            "/api/customers/cust_test123",
+            f"/api/customers/{customer_id}",
             json={"name": "Updated Corp"}
         )
         
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["name"] == "Updated Corp"
+        assert data["contact_email"] == "updateoriginal@example.com"  # Unchanged
     
-    def test_update_customer_not_found(self, client, mock_customer_service):
+    def test_update_customer_not_found(self, client):
         """Test updating non-existent customer."""
-        mock_customer_service.update_customer = AsyncMock(
-            side_effect=ValueError("Customer with ID nonexistent not found")
-        )
-        
         response = client.put(
-            "/api/customers/nonexistent",
+            "/api/customers/cust_nonexistent123",
             json={"name": "Updated Corp"}
         )
         
@@ -187,10 +163,18 @@ class TestUpdateCustomer:
         assert "error" in data
         assert data["error"]["code"] == "NOT_FOUND"
     
-    def test_update_customer_no_fields(self, client, mock_customer_service):
+    def test_update_customer_no_fields(self, client):
         """Test updating customer with no fields provided."""
+        # Create a customer first
+        create_response = client.post(
+            "/api/customers",
+            json={"name": "No Fields Test Corp", "contact_email": "nofields@example.com"}
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+        customer_id = create_response.json()["id"]
+        
         response = client.put(
-            "/api/customers/cust_test123",
+            f"/api/customers/{customer_id}",
             json={}
         )
         
@@ -202,21 +186,26 @@ class TestUpdateCustomer:
 class TestDeleteCustomer:
     """Tests for DELETE /api/customers/{customer_id} endpoint."""
     
-    def test_delete_customer_success(self, client, mock_customer_service):
+    def test_delete_customer_success(self, client):
         """Test successful customer deletion."""
-        mock_customer_service.delete_customer = AsyncMock(return_value=None)
+        # Create a customer first
+        create_response = client.post(
+            "/api/customers",
+            json={"name": "To Delete", "contact_email": "delete@example.com"}
+        )
+        customer_id = create_response.json()["id"]
         
-        response = client.delete("/api/customers/cust_test123")
+        response = client.delete(f"/api/customers/{customer_id}")
         
         assert response.status_code == status.HTTP_204_NO_CONTENT
-    
-    def test_delete_customer_not_found(self, client, mock_customer_service):
-        """Test deleting non-existent customer."""
-        mock_customer_service.delete_customer = AsyncMock(
-            side_effect=ValueError("Customer with ID nonexistent not found")
-        )
         
-        response = client.delete("/api/customers/nonexistent")
+        # Verify it's deleted
+        get_response = client.get(f"/api/customers/{customer_id}")
+        assert get_response.status_code == status.HTTP_404_NOT_FOUND
+    
+    def test_delete_customer_not_found(self, client):
+        """Test deleting non-existent customer."""
+        response = client.delete("/api/customers/cust_nonexistent123")
         
         assert response.status_code == status.HTTP_404_NOT_FOUND
         data = response.json()

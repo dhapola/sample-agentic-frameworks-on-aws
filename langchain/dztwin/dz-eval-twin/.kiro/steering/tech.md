@@ -2,12 +2,12 @@
 
 ## Backend
 
-- **Framework**: FastAPI 0.115.6 (async Python web framework)
+- **Framework**: FastAPI (async Python web framework)
 - **Language**: Python 3.11+
-- **Database**: MongoDB Community Edition 7.0 (NoSQL document database)
-- **Database Driver**: Motor 3.7.0 (async MongoDB driver for Python)
-- **Validation**: Pydantic 2.10.6 (data validation using type annotations)
-- **Testing**: pytest 8.3.4, pytest-asyncio, Hypothesis 6.122.3 (property-based testing)
+- **Database**: MongoDB 8.0 (NoSQL document database)
+- **Database Driver**: Motor (async MongoDB driver for Python)
+- **Validation**: Pydantic 2.x with pydantic-settings (data validation using type annotations)
+- **Testing**: pytest, pytest-asyncio, Hypothesis (property-based testing), httpx (async HTTP testing), websockets
 - **Code Quality**: black (formatter), flake8 (linter), mypy (type checker)
 
 ## Frontend
@@ -15,17 +15,18 @@
 - **Framework**: React 18.3.1
 - **Language**: TypeScript 5.7.3
 - **Build Tool**: Vite 6.0.7 (fast dev server and bundler)
-- **UI Library**: Material-UI 6.3.1 (@mui/material)
-- **Routing**: React Router 7.1.3
+- **UI Library**: Material-UI 6.3.1 (@mui/material, @mui/icons-material, @emotion/react, @emotion/styled)
+- **Routing**: React Router DOM 7.1.3
 - **HTTP Client**: Axios 1.7.9
 - **Charts**: Recharts 2.15.0
-- **Testing**: Jest 29.7.0, React Testing Library, fast-check 3.24.2 (property-based testing)
+- **Testing**: Jest 29.7.0, React Testing Library (@testing-library/react, @testing-library/jest-dom, @testing-library/user-event), fast-check 4.5.3 (property-based testing), ts-jest
 
 ## Development Tools
 
-- **Docker**: MongoDB containerization via docker-compose
+- **Container Runtime**: Docker Compose with MongoDB 8.0 (can also use Finch as Docker alternative for macOS)
 - **Make**: Development task automation
 - **Scripts**: Bash scripts for setup and testing
+- **Server**: Uvicorn with standard extras (ASGI server for FastAPI)
 
 ## Common Commands
 
@@ -38,8 +39,8 @@ make install-frontend   # Install Node dependencies
 
 ### Database
 ```bash
-make start-db          # Start MongoDB (Docker)
-make stop-db           # Stop MongoDB
+make start-db          # Start MongoDB (Docker Compose)
+make stop-db           # Stop MongoDB (Docker Compose down)
 ```
 
 ### Development
@@ -52,13 +53,14 @@ make start-frontend    # Start Vite dev server (http://localhost:3000)
 ```bash
 make test              # Run all tests
 make test-backend      # Run backend tests (pytest)
-make test-frontend     # Run frontend tests (Jest)
+make test-frontend     # Run frontend tests (Jest with --passWithNoTests)
 
 # Backend specific
 cd backend
 pytest                 # All tests
 pytest tests/unit/     # Unit tests only
 pytest tests/properties/  # Property-based tests only
+pytest tests/integration/ # Integration tests only
 pytest --cov=app       # With coverage
 
 # Frontend specific
@@ -132,10 +134,21 @@ VITE_API_BASE_URL=http://localhost:8000
 ## Key Configuration Files
 
 - `backend/pyproject.toml`: pytest, black, mypy, Hypothesis configuration
-- `backend/requirements.txt`: Python dependencies
+- `backend/requirements.txt`: Python dependencies (no version pinning)
 - `frontend/package.json`: Node dependencies and scripts
-- `frontend/vite.config.ts`: Vite build configuration
+- `frontend/vite.config.ts`: Vite build configuration with path aliases and proxy
 - `frontend/jest.config.ts`: Jest test configuration
-- `frontend/tsconfig.json`: TypeScript compiler options
-- `docker-compose.yml`: MongoDB service definition
+- `frontend/tsconfig.json`: TypeScript compiler options with path aliases
+- `frontend/tsconfig.node.json`: TypeScript config for Node.js files
+- `docker-compose.yml`: MongoDB 8.0 service definition with healthcheck
 - `Makefile`: Development task automation
+- `.env` files: Environment configuration (use .env.example as template)
+
+## Containers
+**Container Runtime**: Docker Compose is the primary method. MongoDB 8.0 runs in a container with:
+- Port mapping: 27017:27017
+- Volume: mongodb_data for persistence
+- Healthcheck: mongosh ping command
+- Auto-restart: unless-stopped
+
+Alternative: Finch can be used as a Docker alternative for macOS (https://runfinch.com/)

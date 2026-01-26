@@ -1,0 +1,4 @@
+# file: /Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/langchain/dztwin/dz-eval-twin/backend/app/api/datasets.py
+# hypothesis_version: 6.150.3
+
+[200, 1000, '/api/datasets', '/{dataset_id}', 'Add test case', 'Create a new dataset', 'Dataset description', 'Dataset name', 'DatasetResponse', 'Delete a dataset', 'Delete dataset', 'Delete test case', 'Geography Questions', 'Get dataset details', 'List datasets', 'Paris', 'Test case input text', 'TestCaseResponse', 'Update dataset', 'Update test case', 'category', 'customer_id', 'datasets', 'description', 'difficulty', 'easy', 'example', 'expected_output', 'geography', 'input', 'metadata', 'name', 'not found']

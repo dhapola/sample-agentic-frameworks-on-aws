@@ -47,7 +47,8 @@ def app():
 @pytest.fixture
 def client(app):
     """Create a test client."""
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def test_customer_context_middleware_with_header(client):

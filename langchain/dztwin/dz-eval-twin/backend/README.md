@@ -1,61 +1,38 @@
-# Gen AI Evaluation Platform - Backend
+# Backend - Gen AI Evaluation Platform
 
-Python FastAPI backend for the Gen AI Evaluation Platform.
+Python FastAPI backend with async MongoDB integration.
 
-## Setup
+## Quick Start
 
-1. Create a virtual environment:
 ```bash
+# Setup
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-2. Install dependencies:
-```bash
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-3. Configure environment:
-```bash
 cp .env.example .env
-# Edit .env with your MongoDB connection details
-```
 
-4. Start MongoDB (if running locally):
-```bash
-# Using Docker
-docker run -d -p 27017:27017 --name mongodb mongo:latest
-
-# Or install MongoDB Community Edition locally
-```
-
-5. Run the development server:
-```bash
+# Run server
 python -m app.main
 ```
 
-The API will be available at http://localhost:8000
-API documentation at http://localhost:8000/docs
+Server runs at http://localhost:8000  
+API docs at http://localhost:8000/docs
 
 ## Testing
 
-Run all tests:
 ```bash
-pytest
-```
+# Clear test database
+python clear_test_db.py
 
-Run unit tests only:
-```bash
-pytest tests/unit/
-```
+# Run all tests
+pytest tests/ -v
 
-Run property-based tests only:
-```bash
-pytest tests/properties/
-```
+# Run specific test suites
+pytest tests/unit/ -v           # Unit tests
+pytest tests/properties/ -v     # Property-based tests
+pytest tests/integration/ -v    # Integration tests
 
-Run with coverage:
-```bash
+# With coverage
 pytest --cov=app --cov-report=html
 ```
 
@@ -64,20 +41,37 @@ pytest --cov=app --cov-report=html
 ```
 backend/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py              # FastAPI application entry point
-│   ├── config.py            # Configuration settings
-│   ├── models/              # Pydantic data models
-│   ├── database/            # Database layer
-│   ├── services/            # Business logic services
-│   ├── api/                 # API endpoints
-│   ├── connectors/          # Application connector plugins
-│   └── engine/              # Evaluation engine
-├── tests/
-│   ├── unit/                # Unit tests
-│   ├── properties/          # Property-based tests
-│   └── integration/         # Integration tests
-├── requirements.txt
-├── pyproject.toml
-└── README.md
+│   ├── main.py          # FastAPI entry point
+│   ├── config.py        # Configuration
+│   ├── api/             # REST endpoints
+│   ├── models/          # Pydantic models
+│   ├── database/        # Database layer
+│   ├── services/        # Business logic
+│   ├── connectors/      # Application plugins
+│   ├── engine/          # Evaluation engine
+│   ├── middleware/      # Request middleware
+│   └── utils/           # Utilities
+└── tests/
+    ├── unit/            # Unit tests
+    ├── properties/      # Property-based tests
+    └── integration/     # Integration tests
 ```
+
+## Environment Variables
+
+```env
+MONGODB_URL=mongodb://localhost:27017
+MONGODB_DB_NAME=gen_ai_eval_platform
+API_HOST=0.0.0.0
+API_PORT=8000
+API_RELOAD=true
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+LOG_LEVEL=INFO
+```
+
+## Test Status
+
+- **Total Tests**: 581
+- **Passing**: 532 (93.5%)
+- **Coverage**: Unit, property-based, and integration tests
+- **Database**: Tests use real MongoDB for integration validation

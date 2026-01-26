@@ -42,6 +42,16 @@ gen-ai-eval-platform/
 
 ## Backend Architecture Patterns
 
+### API Router Organization
+```python
+# main.py - Router registration
+app.include_router(customers.router)           # /api/customers
+app.include_router(application_profiles.router) # /api/customers/{id}/application-profiles
+                                                # /api/application-profiles/{id}
+app.include_router(datasets.router)             # /api/datasets
+app.include_router(evaluations.router)          # /api/evaluations
+```
+
 ### Layered Architecture
 1. **API Layer** (`app/api/`): FastAPI routers, request/response handling
 2. **Service Layer** (`app/services/`): Business logic, orchestration
@@ -57,16 +67,23 @@ async def get_customer(customer_id: str) -> Optional[Customer]:
     return Customer(**result) if result else None
 ```
 
-**Dependency Injection**: FastAPI dependencies for database, authentication, etc.
+**Dependency Injection**: FastAPI dependencies for services and customer context
 ```python
-from fastapi import Depends
+from fastapi import Depends, Request
 
-async def get_current_customer(customer_id: str = Header(...)) -> str:
+def get_customer_id(request: Request) -> str:
+    """Get customer_id from request state set by middleware."""
+    customer_id = getattr(request.state, "customer_id", None)
+    if not customer_id:
+        raise UnauthorizedError("Customer context required. Please provide X-Customer-ID header.")
     return customer_id
 
 @router.get("/datasets")
-async def list_datasets(customer_id: str = Depends(get_current_customer)):
-    # customer_id injected automatically
+async def list_datasets(
+    customer_id: str = Depends(get_customer_id),
+    service: DatasetService = Depends(get_dataset_service)
+):
+    # customer_id and service injected automatically
 ```
 
 **Pydantic Models**: Type-safe data validation and serialization
@@ -84,22 +101,42 @@ class Customer(BaseModel):
         return v.strip()
 ```
 
-**Middleware**: Request processing pipeline
-- `LoggingMiddleware`: Request/response logging
-- `CustomerContextMiddleware`: Tenant isolation
-- `error_handler_middleware`: Centralized error handling
+**Middleware**: Request processing pipeline (order matters)
+- `CORSMiddleware`: CORS handling (added first for preflight requests)
+- `LoggingMiddleware`: Request/response logging with timing
+- `CustomerContextMiddleware`: Tenant isolation via X-Customer-ID header
+- `error_handler_middleware`: Centralized error handling with standardized responses
+- `validation_exception_handler`: Pydantic validation error formatting
 
-**Database Manager**: Singleton pattern for connection lifecycle
+**Database Manager**: Singleton pattern with retry logic and health checks
 ```python
 from app.database.connection import database_manager
 
-# In lifespan
-await database_manager.connect()
+# In lifespan (main.py)
+await database_manager.connect()  # Retries up to 3 times with exponential backoff
 # Use database
 db = database_manager.database
+# Health check
+is_healthy = await database_manager.health_check()
+# Disconnect
+await database_manager.disconnect()
 ```
 
 ## Frontend Architecture Patterns
+
+### Routing Structure
+```typescript
+// App.tsx with React Router
+<Routes>
+  <Route path="/" element={<Layout />}>
+    <Route index element={<DashboardView />} />
+    <Route path="admin" element={<AdminView />} />
+    <Route path="datasets" element={<DatasetsView />} />
+    <Route path="evaluations" element={<EvaluationsView />} />
+    <Route path="results" element={<ResultsView />} />
+  </Route>
+</Routes>
+```
 
 ### Component Organization
 - **Components** (`src/components/`): Reusable, presentational components
@@ -116,22 +153,46 @@ export interface Customer {
   name: string;
   contactEmail: string;
   contactPhone?: string;
+  configuration?: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConnectionConfig {
+  endpoint: string;
+  authentication?: Record<string, any>;
+  timeout?: number;
+  retries?: number;
+  customHeaders?: Record<string, string>;
+}
+
+export interface ApplicationProfile {
+  id: string;
+  customerId: string;
+  name: string;
+  type: string; // "chatbot" | "rag" | "agent" | "workflow" | "custom"
+  connectionConfig: ConnectionConfig;
+  createdAt: string;
+  updatedAt: string;
 }
 ```
 
-**API Client**: Axios-based service layer
+**API Client**: Axios-based service layer with interceptors
 ```typescript
 // src/services/api.ts
 import axios from 'axios';
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-});
+const apiClient = new APIClient();
 
-export const customerService = {
-  list: () => api.get<Customer[]>('/api/customers'),
-  get: (id: string) => api.get<Customer>(`/api/customers/${id}`),
-};
+// Set customer context for tenant-scoped requests
+apiClient.setCustomerContext(customerId);
+
+// Make requests
+const customers = await apiClient.getCustomers();
+const datasets = await apiClient.getDatasets(); // Uses X-Customer-ID header
+
+// Clear customer context
+apiClient.clearCustomerContext();
 ```
 
 **Material-UI**: Consistent component styling
@@ -177,15 +238,29 @@ from app.config import settings
 from app.database.connection import database_manager
 ```
 
-**Error Handling**: Use FastAPI HTTPException
+**Error Handling**: Custom exception classes with standardized responses
 ```python
-from fastapi import HTTPException, status
+from app.middleware.error_handler import (
+    NotFoundError, ValidationError, UnauthorizedError,
+    DatabaseError, ConnectionError, ForbiddenError
+)
 
+# Raise custom exceptions
 if not customer:
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Customer {customer_id} not found"
-    )
+    raise NotFoundError(f"Customer {customer_id} not found")
+
+if not customer_id:
+    raise UnauthorizedError("Customer context required. Please provide X-Customer-ID header.")
+
+# Errors are caught by error_handler_middleware and converted to:
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Customer cust_123 not found",
+    "details": null,
+    "timestamp": "2024-01-01T00:00:00Z"
+  }
+}
 ```
 
 ### Frontend (TypeScript)
@@ -221,12 +296,13 @@ export const CustomerList: React.FC<Props> = ({ customerId, onSelect }) => {
 ## Multi-Tenancy Implementation
 
 ### Database Level
-- All collections have `customerId` field
+- All collections have `customerId` field (camelCase)
 - Indexes on `customerId` for efficient queries
 - Repository methods filter by customer context
+- Automatic index creation in `database_manager._create_indexes()`
 
 ### Service Level
-- All operations accept `customer_id` parameter
+- All tenant-scoped operations accept `customer_id` parameter
 - Automatic filtering in repository layer
 ```python
 async def list_datasets(customer_id: str) -> list[Dataset]:
@@ -235,9 +311,11 @@ async def list_datasets(customer_id: str) -> list[Dataset]:
 ```
 
 ### API Level
-- Customer context extracted from headers/auth
-- Middleware enforces tenant isolation
-- Endpoints automatically scoped to customer
+- Customer context extracted from `X-Customer-ID` header by `CustomerContextMiddleware`
+- Stored in `request.state.customer_id`
+- Admin endpoints (customers, application profiles) exempt from customer context requirement
+- Tenant-scoped endpoints (datasets, evaluations) require customer context via dependency injection
+- Middleware enforces tenant isolation at the request level
 
 ## Testing Conventions
 
@@ -313,52 +391,105 @@ test('customer name always displays', () => {
 
 ### Indexes
 - Primary: `customerId` on all collections
-- Composite: `[("customerId", 1), ("status", 1)]` for common queries
+- Composite indexes for common queries:
+  - `evaluationRuns`: `[("customerId", 1), ("status", 1)]`
+  - `evaluationRuns`: `[("customerId", 1), ("startTime", -1)]`
 - Created automatically in `database_manager._create_indexes()`
+- Collections: `customers`, `applicationProfiles`, `datasets`, `evaluationRuns`
+
+## Validation Patterns
+
+### Backend Validation
+- **Pydantic Models**: Field-level validation with `Field()` constraints
+- **Custom Validators**: Use `@field_validator` for complex validation logic
+- **ID Validation**: Utility functions in `app/utils/validation.py`:
+  - `validate_customer_id()`
+  - `validate_application_profile_id()`
+  - `validate_dataset_id()`
+  - `validate_test_case_id()`
+- **Request Validation**: Separate request models (e.g., `CreateCustomerRequest`, `UpdateCustomerRequest`)
+- **Response Models**: Separate response models with `from_model()` class methods
+
+### Frontend Validation
+- TypeScript interfaces for type safety
+- API client validates responses match expected types
+- Form validation in UI components (Material-UI integration)
 
 ## API Conventions
 
 ### Endpoint Structure
 - Base path: `/api/`
-- Resource-based: `/api/customers`, `/api/datasets`
+- Admin endpoints: `/api/customers`, `/api/customers/{customer_id}/application-profiles`, `/api/application-profiles/{profile_id}`
+- Tenant-scoped endpoints: `/api/datasets`, `/api/evaluations`
 - RESTful verbs: GET, POST, PUT, DELETE
+- Nested resources: `/api/datasets/{dataset_id}/test-cases`
+
+### Request Headers
+- `X-Customer-ID`: Required for tenant-scoped endpoints (datasets, evaluations)
+- `X-Request-Time`: Added automatically by API client
+- `Content-Type: application/json`
 
 ### Response Format
 ```json
 {
   "id": "123",
-  "name": "Resource Name",
   "customerId": "cust_456",
-  "createdAt": "2024-01-01T00:00:00Z"
+  "name": "Resource Name",
+  "createdAt": "2024-01-01T00:00:00Z",
+  "updatedAt": "2024-01-01T00:00:00Z"
 }
 ```
 
 ### Error Format
 ```json
 {
-  "detail": "Error message",
-  "status_code": 404
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Resource not found",
+    "details": null,
+    "timestamp": "2024-01-01T00:00:00Z"
+  }
 }
 ```
+
+### Status Codes
+- 200: Success (GET, PUT)
+- 201: Created (POST)
+- 204: No Content (DELETE)
+- 400: Validation Error
+- 401: Unauthorized (missing customer context)
+- 403: Forbidden
+- 404: Not Found
+- 500: Internal Server Error
+- 503: Service Unavailable (connection errors)
 
 ## Configuration Management
 
 ### Backend
 - Use `pydantic-settings` for environment variables
-- Define in `app/config.py`
+- Define in `app/config.py` as `Settings` class
 - Access via `settings` singleton
+- Supports `.env` file loading with `SettingsConfigDict`
+- Properties: `cors_origins_list` parses comma-separated CORS origins
 
 ### Frontend
 - Use Vite environment variables (`VITE_*`)
-- Access via `import.meta.env.VITE_API_BASE_URL`
+- Access via `import.meta.env.VITE_API_BASE_URL` or `process.env.VITE_API_BASE_URL`
+- Path aliases configured: `@/*` maps to `src/*`
+- Proxy configuration in `vite.config.ts` for `/api` requests
 
 ## Logging
 
 ### Backend
 - Use Python `logging` module
-- Configure in `main.py`
-- Log levels: DEBUG, INFO, WARNING, ERROR
+- Configure in `main.py` with `logging.basicConfig()`
+- Log level from `settings.log_level` (default: INFO)
+- Format: `"%(asctime)s - %(name)s - %(levelname)s - %(message)s"`
+- Middleware adds request/response logging with timing
+- Error handler logs exceptions with `exc_info=True`
 
 ### Frontend
 - Use `console.log`, `console.error` for development
+- API client logs requests/responses in development mode
+- Error interceptor logs API errors with status codes
 - Consider structured logging for production
