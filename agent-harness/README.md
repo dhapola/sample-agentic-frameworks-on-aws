@@ -8,4 +8,4 @@ Each subfolder is a self-contained example with its own README, Dockerfile, and 
 
 | Example | Description | Framework |
 |---------|-------------|-----------|
-| [pi-mono](./pi-mono/) | Deploy the `pi` coding agent to AgentCore via ECR with S3 session snapshots | FastAPI + pi RPC |
+| [pi-mono-claw](./pi-mono-claw/) | Deploy the `pi` coding agent to AgentCore via ECR with S3 session snapshots and OpenTelemetry observability | FastAPI + pi RPC |

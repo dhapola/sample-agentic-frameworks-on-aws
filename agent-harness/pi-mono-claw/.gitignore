@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Environment / secrets
+.env
+*.pem
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Build / deploy artifacts
+/tmp/trust-policy.json
+/tmp/permissions-policy.json
+
+# AgentCore local state
+.bedrock_agentcore/
+.bedrock_agentcore.yaml
+
+# Internal progress tracking (contains account-specific info)
+PROGRESS.md
