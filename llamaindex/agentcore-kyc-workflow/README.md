@@ -121,28 +121,7 @@ runtime at `localhost:8080` instead of the deployed agent.
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  cli.py  (or boto3 invoke_agent_runtime)                     │
-└──────────────────────────┬───────────────────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────────────────┐
-│  AgentCore Runtime (container)                               │
-│                                                              │
-│  BedrockAgentCoreApp  ←  single @app.entrypoint              │
-│    │                                                         │
-│    └─ AgentCoreService (WorkflowServer, SQLite store)        │
-│         │                                                    │
-│         └─ KYCWorkflow                                       │
-│              ├─ start (fan-out 3 ExtractDocEvents)           │
-│              ├─ extract_document ×3 (LlamaParse)             │
-│              ├─ validate_documents (Claude via Bedrock)       │
-│              └─ finalize → StopEvent with KYC decision       │
-│                                                              │
-│  /mnt/workspace/workflows.db  ← durable session storage     │
-└──────────────────────────────────────────────────────────────┘
-```
+![KYC Workflow Architecture](../assets/tech-arch-kyc.png)
 
 ## Local Testing
 
