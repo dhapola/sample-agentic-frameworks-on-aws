@@ -1,6 +1,8 @@
 # Deploy a Custom Agent to Amazon Bedrock AgentCore Runtime via ECR
 
-This guide deploys a coding agent (pi-mono) to AgentCore Runtime using a custom Docker container pushed to ECR — no `bedrock-agentcore` SDK required. The agent implements the AgentCore HTTP contract directly with FastAPI.
+This guide deploys a coding agent (`pi_mono`) to AgentCore Runtime using a custom Docker container pushed to ECR — no `bedrock-agentcore` SDK required. The agent implements the AgentCore HTTP contract directly with FastAPI.
+
+> ⚠️ **Naming constraint:** AgentCore runtime names must match `[a-zA-Z][a-zA-Z0-9_]{0,47}` — no hyphens allowed. Use underscores (e.g. `pi_mono`, not `pi-mono`).
 
 ## Why This Architecture?
 
@@ -50,7 +52,8 @@ User → InvokeAgentRuntime API → AgentCore Runtime → Container (FastAPI :80
 
 - AWS account with Bedrock model access enabled for `us.anthropic.claude-sonnet-4-6`
 - Docker with buildx (for ARM64 cross-compilation)
-- AWS CLI v2 configured with credentials that can create IAM roles, ECR repos, and AgentCore runtimes
+- **AWS CLI v2 (v2.34+) required** — CLI v1 does not include `bedrock-agentcore-control` commands
+  - Install/upgrade: `curl "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "AWSCLIV2.pkg" && sudo installer -pkg AWSCLIV2.pkg -target /`
 - Python 3.10+ with boto3 installed locally (for deploy/invoke scripts)
 
 ## File Overview
@@ -96,9 +99,9 @@ export ACCOUNT_ID="<ACCOUNT_ID>"
 export REGION="us-east-1"
 
 # Names (you can change these)
-export AGENT_NAME="pi-mono"
-export ECR_REPO="pi-mono-agent-ecr"
-export SNAPSHOT_BUCKET="pi-mono-agent-snapshots-${ACCOUNT_ID}"
+export AGENT_NAME="pi_mono"
+export ECR_REPO="pi-mono-agent-ecr" 
+export SNAPSHOT_BUCKET="pi-mono-agent-snapshots-${ACCOUNT_ID}" 
 export ROLE_NAME="AgentCoreRuntime-pi-mono-ecr"
 ```
 
@@ -258,15 +261,13 @@ aws ecr describe-images --repository-name ${ECR_REPO} --region ${REGION} \
 ### 5. Deploy to AgentCore Runtime
 
 ```bash
-# Create the agent runtime — capture the runtime ID from the output
+# Create the agent runtime — note the nested JSON structure for artifact and network config
 RUNTIME_RESPONSE=$(aws bedrock-agentcore-control create-agent-runtime \
   --agent-runtime-name ${AGENT_NAME} \
-  --container-uri ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}:latest \
+  --agent-runtime-artifact "{\"containerConfiguration\":{\"containerUri\":\"${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}:latest\"}}" \
   --role-arn arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME} \
-  --network-mode PUBLIC \
+  --network-configuration '{"networkMode":"PUBLIC"}' \
   --environment-variables SNAPSHOT_BUCKET=${SNAPSHOT_BUCKET},OTEL_ENABLED=true \
-  --idle-session-timeout-in-seconds 900 \
-  --max-session-lifetime-in-seconds 28800 \
   --region ${REGION})
 
 # Extract and save the runtime ID for later use
@@ -278,7 +279,7 @@ echo "Runtime ARN: arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT_ID}:runtime/${A
 Wait for the runtime to become `READY`:
 
 ```bash
-# Poll until ready (usually takes 2-5 minutes)
+# Poll until ready (usually takes 2-5 minutes) — uses --agent-runtime-id (not name)
 while true; do
   STATUS=$(aws bedrock-agentcore-control get-agent-runtime \
     --agent-runtime-id ${RUNTIME_ID} --region ${REGION} \
@@ -292,14 +293,26 @@ done
 ### 6. Invoke the Agent
 
 ```bash
-# Generate a session ID (must be 33+ characters — AgentCore requirement)
+# Generate a session ID
 export SESSION_ID=$(python3 -c "import uuid; print(str(uuid.uuid4()) + '-extra-chars-for-length')")
 
+# Get the runtime ARN
+export RUNTIME_ARN=$(aws bedrock-agentcore-control get-agent-runtime \
+  --agent-runtime-id ${RUNTIME_ID} --region ${REGION} \
+  --query 'agentRuntimeArn' --output text)
+
+# Create the payload file (payload must be sent as binary via fileb://)
+echo '{"sessionId":"'${SESSION_ID}'","prompt":"What files are in /workspace?"}' > /tmp/payload.json
+
+# Invoke (output is written to a file)
 aws bedrock-agentcore invoke-agent-runtime \
-  --agent-runtime-arn arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT_ID}:runtime/${AGENT_NAME} \
-  --runtime-session-id ${SESSION_ID} \
-  --payload '{"prompt": "What files are in /workspace?"}' \
-  --region ${REGION}
+  --agent-runtime-arn ${RUNTIME_ARN} \
+  --payload fileb:///tmp/payload.json \
+  --region ${REGION} \
+  /tmp/agent-response.json
+
+# View the response
+cat /tmp/agent-response.json | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin), indent=2))"
 ```
 
 > **Note:** Same `SESSION_ID` = same container (stateful conversation). Different `SESSION_ID` = fresh container.
@@ -382,6 +395,60 @@ The agent starts a `pi --mode rpc` subprocess and communicates via JSON lines on
 
 - **Snapshot**: After every `handle()` call, a background thread uploads all files from `/home/agent/.pi/` (conversation history) and `/workspace/` (user files) to S3 under `<session_id>/`.
 - **Restore**: On cold start (container recycled), before starting pi, the agent checks S3 for an existing snapshot and downloads it. Pi is then started with `--continue` to resume the conversation.
+
+---
+
+## Quick Smoke Test
+
+After deployment, run this end-to-end test to verify everything works:
+
+```bash
+# 1. Confirm the runtime is ready
+STATUS=$(aws bedrock-agentcore-control get-agent-runtime \
+  --agent-runtime-id ${RUNTIME_ID} --region ${REGION} \
+  --query 'status' --output text)
+echo "Status: ${STATUS}"
+# Expected: READY
+
+# 2. Get the runtime ARN
+export RUNTIME_ARN=$(aws bedrock-agentcore-control get-agent-runtime \
+  --agent-runtime-id ${RUNTIME_ID} --region ${REGION} \
+  --query 'agentRuntimeArn' --output text)
+
+# 3. Create a test payload
+export TEST_SESSION=$(python3 -c "import uuid; print(str(uuid.uuid4()) + '-smoke-test')")
+echo '{"sessionId":"'${TEST_SESSION}'","prompt":"Write a Python function that calculates the fibonacci sequence"}' > /tmp/test-payload.json
+
+# 4. Invoke the agent
+aws bedrock-agentcore invoke-agent-runtime \
+  --agent-runtime-arn ${RUNTIME_ARN} \
+  --payload fileb:///tmp/test-payload.json \
+  --region ${REGION} \
+  /tmp/test-response.json
+
+# 5. Verify the response
+echo "=== Agent Response ==="
+cat /tmp/test-response.json | python3 -c "import sys,json; data=json.load(sys.stdin); print(data.get('result', data.get('error', 'UNEXPECTED FORMAT')))"
+```
+
+**Expected behavior:**
+- The agent should return a `{"result": "..."}` JSON with a working fibonacci implementation
+- Response typically takes 10-30 seconds (the agent spawns pi, which calls Claude via Bedrock)
+- If you get a 500 error, check CloudWatch logs:
+  ```bash
+  aws logs filter-log-events \
+    --log-group-name "/aws/bedrock-agentcore/runtimes/${RUNTIME_ID}-DEFAULT" \
+    --limit 50 --region ${REGION}
+  ```
+
+**Common issues:**
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `RuntimeClientError (500)` | Container not starting | Check IAM permissions (especially ECR pull + CloudWatch) |
+| `Invalid base64` | Payload not encoded | Use `fileb://` prefix, not raw JSON string |
+| `ValidationException: agentRuntimeName` | Hyphen in name | Use underscores only (e.g. `pi_mono`) |
+| `Role validation failed` | Trust policy has literal `${ACCOUNT_ID}` | Recreate with unquoted `EOF` heredoc |
+| No CloudWatch log group | Container crashed immediately | Verify IAM role has `logs:CreateLogGroup` permission |
 
 ---
 
