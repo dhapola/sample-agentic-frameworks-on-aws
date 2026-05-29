@@ -1,8 +1,8 @@
-# KYC Document Verification — LlamaIndex Workflows on AWS Bedrock AgentCore
+# KYC Verification Agent on AWS Bedrock AgentCore
 
 Deploy an AI-powered KYC (Know Your Customer) document verification agent to
 **AWS Bedrock AgentCore** in minutes. This example shows how
-[LlamaIndex Workflows](https://docs.llamaindex.ai/en/stable/understanding/workflows/)
+[LlamaIndex Workflows](https://developers.llamaindex.ai/python/llamaagents/workflows/)
 running on AgentCore can automate real-world compliance tasks — extracting
 structured data from identity documents and cross-validating them with Claude.
 
@@ -10,7 +10,7 @@ structured data from identity documents and cross-validating them with Claude.
 
 1. **Document Extraction** — Three identity documents (Government ID, Utility
    Bill, Bank Statement) are processed *in parallel* through
-   [LlamaParse Extract](https://docs.llamaindex.ai/en/stable/llama_cloud/llama_extract/)
+   [LlamaParse Extract](https://developers.llamaindex.ai/python/cloud/llamaextract/getting_started/)
    to pull out structured fields (name, address, account details).
 2. **Cross-Validation** — Claude (via Amazon Bedrock) compares names and addresses
    across all three documents, handling abbreviations, formatting differences,
@@ -123,6 +123,19 @@ runtime at `localhost:8080` instead of the deployed agent.
 
 ![KYC Workflow Architecture](../assets/tech-arch-kyc.png)
 
+### Async workflow + polling
+
+```bash
+# Start without waiting
+python cli.py invoke --no-wait \
+  --gov-id sample_docs/drivers_license.pdf \
+  --utility-bill sample_docs/utility_bill.pdf \
+  --bank-statement sample_docs/bank_statement.pdf
+
+# Poll for result
+python cli.py status --handler-id <SESSION_ID>
+```
+
 ## Local Testing
 
 Run the workflow locally without deploying to AgentCore:
@@ -131,6 +144,23 @@ Run the workflow locally without deploying to AgentCore:
 # Requires LLAMA_CLOUD_API_KEY and AWS credentials (for Bedrock Claude)
 python workflow.py
 ```
+
+Uses the sample documents in `sample_docs/` and prints the KYC decision.
+
+You can also launch the local AgentCore Runtime for testing:
+
+```bash
+uv run python -m llama_agents.agentcore.main --local
+```
+
+Then, you can call the CLI with `--local` to target the local runtime.
+
+## IAM Roles
+
+Deploy the CloudFormation stack in `customer-iam-role.yaml` to create:
+
+- **Deployment Role** — used by CodeBuild to build and push containers to ECR
+- **Execution Role** — assumed by the AgentCore Runtime (needs `bedrock:InvokeModel*` for Claude)
 
 ## Cleanup
 
