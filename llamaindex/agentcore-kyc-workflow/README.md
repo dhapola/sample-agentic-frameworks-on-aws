@@ -121,7 +121,7 @@ runtime at `localhost:8080` instead of the deployed agent.
 
 ## Architecture
 
-![KYC Workflow Architecture](../assets/tech-arch-kyc.png)
+![KYC Workflow Architecture](../assets/llamaindex-agentcore-arch.png)
 
 ### Async workflow + polling
 
