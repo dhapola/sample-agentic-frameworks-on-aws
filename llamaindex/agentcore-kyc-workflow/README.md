@@ -121,6 +121,8 @@ runtime at `localhost:8080` instead of the deployed agent.
 
 ## Architecture
 
+> **Note:** This is a starter code to integrate with AgentCore. The full integration with AgentCore building blocks can be enabled, but is not included in this sample at this time.
+
 ![KYC Workflow Architecture](../assets/llamaindex-agentcore-arch.png)
 
 ### Async workflow + polling
