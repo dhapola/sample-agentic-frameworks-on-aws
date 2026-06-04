@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResp
 import { Customer, ApplicationProfile, Dataset, TestCase, EvaluationRun } from '../types';
 
 // Get API base URL from environment or use default
-const API_BASE_URL = process.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 // Error response type
 interface ErrorResponse {
@@ -37,9 +37,10 @@ class APIClient {
         config.headers['X-Request-Time'] = new Date().toISOString();
         
         // Log request in development
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`);
-        }
+        console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, {
+          headers: config.headers,
+          customerId: config.headers['X-Customer-ID']
+        });
         
         return config;
       },
@@ -55,9 +56,7 @@ class APIClient {
         this.requestCount--;
         
         // Log response in development
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.status);
-        }
+        console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.status);
         
         return response;
       },
@@ -158,9 +157,30 @@ class APIClient {
       };
     }
   ): Promise<ApplicationProfile> {
+    // Flatten connectionConfig for backend API, only include defined values
+    const requestData: any = {
+      name: data.name,
+      type: data.type,
+      endpoint: data.connectionConfig.endpoint,
+    };
+    
+    // Only add optional fields if they are defined
+    if (data.connectionConfig.timeout !== undefined) {
+      requestData.timeout = data.connectionConfig.timeout;
+    }
+    if (data.connectionConfig.retries !== undefined) {
+      requestData.retries = data.connectionConfig.retries;
+    }
+    if (data.connectionConfig.authentication !== undefined) {
+      requestData.authentication = data.connectionConfig.authentication;
+    }
+    if (data.connectionConfig.customHeaders !== undefined) {
+      requestData.customHeaders = data.connectionConfig.customHeaders;
+    }
+    
     const response = await this.client.post<ApplicationProfile>(
       `/api/customers/${customerId}/application-profiles`,
-      data
+      requestData
     );
     return response.data;
   }
@@ -182,9 +202,37 @@ class APIClient {
     id: string,
     updates: Partial<ApplicationProfile>
   ): Promise<ApplicationProfile> {
+    // Flatten connectionConfig if present, only include defined values
+    let requestData: any = {};
+    
+    // Copy non-connectionConfig fields
+    Object.keys(updates).forEach(key => {
+      if (key !== 'connectionConfig') {
+        requestData[key] = (updates as any)[key];
+      }
+    });
+    
+    // Flatten connectionConfig if present
+    if (updates.connectionConfig) {
+      requestData.endpoint = updates.connectionConfig.endpoint;
+      
+      if (updates.connectionConfig.timeout !== undefined) {
+        requestData.timeout = updates.connectionConfig.timeout;
+      }
+      if (updates.connectionConfig.retries !== undefined) {
+        requestData.retries = updates.connectionConfig.retries;
+      }
+      if (updates.connectionConfig.authentication !== undefined) {
+        requestData.authentication = updates.connectionConfig.authentication;
+      }
+      if (updates.connectionConfig.customHeaders !== undefined) {
+        requestData.customHeaders = updates.connectionConfig.customHeaders;
+      }
+    }
+    
     const response = await this.client.put<ApplicationProfile>(
       `/api/application-profiles/${id}`,
-      updates
+      requestData
     );
     return response.data;
   }
@@ -199,6 +247,15 @@ class APIClient {
     return response.data;
   }
 
+  async createDatasetWithFile(formData: FormData): Promise<Dataset> {
+    const response = await this.client.post<Dataset>('/api/datasets', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
   async getDatasets(): Promise<Dataset[]> {
     const response = await this.client.get<Dataset[]>('/api/datasets');
     return response.data;
@@ -206,6 +263,13 @@ class APIClient {
 
   async getDataset(id: string): Promise<Dataset> {
     const response = await this.client.get<Dataset>(`/api/datasets/${id}`);
+    return response.data;
+  }
+
+  async downloadDatasetFile(id: string): Promise<Blob> {
+    const response = await this.client.get(`/api/datasets/${id}/file`, {
+      responseType: 'blob',
+    });
     return response.data;
   }
 

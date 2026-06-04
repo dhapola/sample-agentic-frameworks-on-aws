@@ -16,7 +16,12 @@ class Settings(BaseSettings):
     api_reload: bool = True
 
     # CORS Configuration
+    # Comma-separated list of allowed origins, or use * for all origins
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
+
+    # File Storage Configuration
+    upload_dir: str = "uploads/datasets"
+    max_file_size_mb: int = 10
 
     # Logging
     log_level: str = "INFO"
@@ -29,8 +34,12 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> list[str]:
-        """Parse CORS origins from comma-separated string"""
-        return [origin.strip() for origin in self.cors_origins.split(",")]
+        """Parse CORS origins from comma-separated string. Returns ['*'] if wildcard is used."""
+        origins = [origin.strip() for origin in self.cors_origins.split(",")]
+        # If any origin is *, return just ['*']
+        if "*" in origins:
+            return ["*"]
+        return origins
 
 
 # Global settings instance

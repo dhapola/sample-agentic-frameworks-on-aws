@@ -1,9 +1,13 @@
 """Dataset management API endpoints (tenant-scoped)."""
 
+import csv
+import io
 import logging
+import os
+import uuid
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
 from pydantic import BaseModel, Field
 
 from app.database.connection import database_manager
@@ -13,6 +17,7 @@ from app.models.dataset import Dataset
 from app.models.test_case import TestCase
 from app.services.dataset_service import DatasetService
 from app.utils.validation import validate_dataset_id, validate_test_case_id
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +28,15 @@ router = APIRouter(prefix="/api/datasets", tags=["datasets"])
 class CreateDatasetRequest(BaseModel):
     """Request model for creating a dataset."""
     
+    application_profile_id: str = Field(..., alias="applicationProfileId", description="Application profile ID")
     name: str = Field(..., min_length=1, max_length=200, description="Dataset name")
     description: str = Field(default="", max_length=1000, description="Dataset description")
     
     class Config:
+        populate_by_name = True
         json_schema_extra = {
             "example": {
+                "applicationProfileId": "prof_xyz789",
                 "name": "Geography Questions",
                 "description": "Test cases for geography knowledge"
             }
@@ -42,6 +50,7 @@ class UpdateDatasetRequest(BaseModel):
     description: Optional[str] = Field(None, max_length=1000, description="Dataset description")
     
     class Config:
+        populate_by_name = True
         json_schema_extra = {
             "example": {
                 "name": "Geography Questions Updated",
@@ -54,14 +63,15 @@ class CreateTestCaseRequest(BaseModel):
     """Request model for creating a test case."""
     
     input: str = Field(..., min_length=1, description="Test case input text")
-    expected_output: Optional[str] = Field(None, description="Expected output for accuracy comparison")
+    expected_output: Optional[str] = Field(None, alias="expectedOutput", description="Expected output for accuracy comparison")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional test case metadata")
     
     class Config:
+        populate_by_name = True  # Accept both snake_case and camelCase
         json_schema_extra = {
             "example": {
                 "input": "What is the capital of France?",
-                "expected_output": "Paris",
+                "expectedOutput": "Paris",
                 "metadata": {
                     "category": "geography",
                     "difficulty": "easy"
@@ -74,14 +84,15 @@ class UpdateTestCaseRequest(BaseModel):
     """Request model for updating a test case."""
     
     input: Optional[str] = Field(None, min_length=1, description="Test case input text")
-    expected_output: Optional[str] = Field(None, description="Expected output for accuracy comparison")
+    expected_output: Optional[str] = Field(None, alias="expectedOutput", description="Expected output for accuracy comparison")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional test case metadata")
     
     class Config:
+        populate_by_name = True  # Accept both snake_case and camelCase
         json_schema_extra = {
             "example": {
                 "input": "What is the capital of France?",
-                "expected_output": "The capital of France is Paris"
+                "expectedOutput": "The capital of France is Paris"
             }
         }
 
@@ -91,8 +102,12 @@ class TestCaseResponse(BaseModel):
     
     id: str
     input: str
-    expected_output: Optional[str] = None
+    expected_output: Optional[str] = Field(None, alias="expectedOutput")
     metadata: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True  # Serialize using aliases (camelCase)
     
     @classmethod
     def from_test_case(cls, test_case: TestCase) -> "TestCaseResponse":
@@ -109,12 +124,18 @@ class DatasetResponse(BaseModel):
     """Response model for dataset data."""
     
     id: str
-    customer_id: str
+    customer_id: str = Field(..., alias="customerId")
+    application_profile_id: str = Field(..., alias="applicationProfileId")
     name: str
     description: str
-    test_cases: List[TestCaseResponse]
-    created_at: str
-    updated_at: str
+    file_path: str = Field(..., alias="filePath")
+    test_cases: List[TestCaseResponse] = Field(..., alias="testCases")
+    created_at: str = Field(..., alias="createdAt")
+    updated_at: str = Field(..., alias="updatedAt")
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True  # Serialize using aliases (camelCase)
     
     @classmethod
     def from_dataset(cls, dataset: Dataset) -> "DatasetResponse":
@@ -122,8 +143,10 @@ class DatasetResponse(BaseModel):
         return cls(
             id=dataset.id,
             customer_id=dataset.customer_id,
+            application_profile_id=dataset.application_profile_id,
             name=dataset.name,
             description=dataset.description,
+            file_path=dataset.file_path,
             test_cases=[TestCaseResponse.from_test_case(tc) for tc in dataset.test_cases],
             created_at=dataset.created_at.isoformat(),
             updated_at=dataset.updated_at.isoformat()
@@ -162,18 +185,28 @@ def get_customer_id(request: Request) -> str:
     response_model=DatasetResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new dataset",
-    description="Create a new dataset for the authenticated customer"
+    description="Create a new dataset with CSV file upload for the authenticated customer"
 )
 async def create_dataset(
-    request_data: CreateDatasetRequest,
+    application_profile_id: str = Form(..., alias="applicationProfileId"),
+    name: str = Form(...),
+    description: str = Form(default=""),
+    file: UploadFile = File(...),
     customer_id: str = Depends(get_customer_id),
     service: DatasetService = Depends(get_dataset_service)
 ) -> DatasetResponse:
     """
-    Create a new dataset.
+    Create a new dataset with CSV file upload.
+    
+    CSV Format:
+    - Required column: input
+    - Optional columns: expected_output, any additional columns become metadata
     
     Args:
-        request_data: Dataset creation request
+        application_profile_id: Application profile ID
+        name: Dataset name
+        description: Dataset description
+        file: CSV file containing test cases
         customer_id: Customer ID from request context
         service: Dataset service instance
         
@@ -181,16 +214,40 @@ async def create_dataset(
         Created dataset
         
     Raises:
-        ValidationError: If validation fails
+        ValidationError: If validation fails or CSV format is invalid
         UnauthorizedError: If customer context missing
     """
+    from app.utils.csv_parser import parse_csv_to_test_cases, validate_csv_file
+    
     try:
+        # Validate file
+        validate_csv_file(file.filename, file.size, settings.max_file_size_mb)
+        
+        # Read file content
+        file_content = await file.read()
+        
+        # Parse CSV to test cases
+        test_cases = parse_csv_to_test_cases(file_content)
+        
+        # Save file to disk
+        file_path = await service.save_dataset_file(
+            customer_id=customer_id,
+            filename=file.filename,
+            content=file_content
+        )
+        
+        # Create dataset
         dataset = await service.create_dataset(
             customer_id=customer_id,
-            name=request_data.name,
-            description=request_data.description
+            application_profile_id=application_profile_id,
+            name=name,
+            description=description,
+            file_path=file_path,
+            test_cases=test_cases
         )
+        
         return DatasetResponse.from_dataset(dataset)
+        
     except ValueError as e:
         raise ValidationError(str(e))
 
@@ -260,6 +317,62 @@ async def get_dataset(
         if dataset is None:
             raise NotFoundError(f"Dataset not found: {validated_dataset_id}")
         return DatasetResponse.from_dataset(dataset)
+    except ValueError as e:
+        raise ValidationError(str(e))
+
+
+@router.get(
+    "/{dataset_id}/file",
+    summary="Download dataset CSV file",
+    description="Download the original CSV file for a dataset"
+)
+async def download_dataset_file(
+    dataset_id: str,
+    customer_id: str = Depends(get_customer_id),
+    service: DatasetService = Depends(get_dataset_service)
+):
+    """
+    Download the CSV file for a dataset.
+    
+    Args:
+        dataset_id: Dataset ID
+        customer_id: Customer ID from request context
+        service: Dataset service instance
+        
+    Returns:
+        CSV file as download
+        
+    Raises:
+        NotFoundError: If dataset or file not found
+        UnauthorizedError: If customer context missing
+        ValidationError: If dataset ID is invalid
+    """
+    from fastapi.responses import FileResponse
+    
+    try:
+        # Validate dataset_id format
+        validated_dataset_id = validate_dataset_id(dataset_id)
+        
+        # Get dataset to verify ownership and get file path
+        dataset = await service.get_dataset(validated_dataset_id, customer_id)
+        if dataset is None:
+            raise NotFoundError(f"Dataset not found: {validated_dataset_id}")
+        
+        # Get file path
+        file_path = await service.get_dataset_file_path(validated_dataset_id, customer_id)
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            raise NotFoundError(f"Dataset file not found: {dataset.file_path}")
+        
+        # Return file
+        filename = os.path.basename(file_path)
+        return FileResponse(
+            path=file_path,
+            media_type="text/csv",
+            filename=filename
+        )
+        
     except ValueError as e:
         raise ValidationError(str(e))
 

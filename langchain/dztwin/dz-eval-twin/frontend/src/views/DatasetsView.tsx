@@ -25,6 +25,11 @@ import {
   List,
   ListItem,
   ListItemText,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  FormHelperText,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -32,14 +37,17 @@ import {
   Add as AddIcon,
   Visibility as ViewIcon,
   ArrowBack as BackIcon,
+  CloudUpload as UploadIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
-import { Dataset, TestCase } from '../types';
+import { Dataset, TestCase, ApplicationProfile } from '../types';
 import apiClient from '../services/api';
 import { useCustomer } from '../contexts/CustomerContext';
 
 const DatasetsView: React.FC = () => {
-  const { currentCustomer } = useCustomer();
+  const { currentCustomer, isReady } = useCustomer();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [applicationProfiles, setApplicationProfiles] = useState<ApplicationProfile[]>([]);
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +56,12 @@ const DatasetsView: React.FC = () => {
   const [datasetDialogOpen, setDatasetDialogOpen] = useState(false);
   const [editingDataset, setEditingDataset] = useState<Dataset | null>(null);
   const [datasetForm, setDatasetForm] = useState({
+    applicationProfileId: '',
     name: '',
     description: '',
+    file: null as File | null,
   });
+  const [fileError, setFileError] = useState<string | null>(null);
 
   // Test case dialog state
   const [testCaseDialogOpen, setTestCaseDialogOpen] = useState(false);
@@ -61,12 +72,26 @@ const DatasetsView: React.FC = () => {
   });
 
   useEffect(() => {
-    if (currentCustomer) {
+    if (currentCustomer && isReady) {
       loadDatasets();
+      loadApplicationProfiles();
     }
-  }, [currentCustomer]);
+  }, [currentCustomer, isReady]);
+
+  const loadApplicationProfiles = async () => {
+    if (!currentCustomer) return;
+    try {
+      const data = await apiClient.getApplicationProfiles(currentCustomer.id);
+      setApplicationProfiles(data);
+    } catch (err: any) {
+      console.error('Failed to load application profiles:', err);
+    }
+  };
 
   const loadDatasets = async () => {
+    if (!currentCustomer) {
+      return; // Don't load if no customer selected
+    }
     try {
       setLoading(true);
       setError(null);
@@ -95,34 +120,105 @@ const DatasetsView: React.FC = () => {
   // Dataset handlers
   const handleCreateDataset = () => {
     setEditingDataset(null);
-    setDatasetForm({ name: '', description: '' });
+    setDatasetForm({ 
+      applicationProfileId: '',
+      name: '', 
+      description: '',
+      file: null,
+    });
+    setFileError(null);
     setDatasetDialogOpen(true);
   };
 
   const handleEditDataset = (dataset: Dataset) => {
     setEditingDataset(dataset);
     setDatasetForm({
+      applicationProfileId: dataset.applicationProfileId,
       name: dataset.name,
       description: dataset.description,
+      file: null, // Can't pre-populate file input
     });
+    setFileError(null);
     setDatasetDialogOpen(true);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setFileError(null);
+    
+    if (file) {
+      // Validate file type
+      if (!file.name.endsWith('.csv')) {
+        setFileError('Please select a CSV file');
+        return;
+      }
+      
+      // Validate file size (10MB max)
+      const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+      if (file.size > maxSize) {
+        setFileError('File size must be less than 10MB');
+        return;
+      }
+      
+      setDatasetForm({ ...datasetForm, file });
+    }
   };
 
   const handleSaveDataset = async () => {
     try {
       setError(null);
+      setFileError(null);
+      
       if (editingDataset) {
-        await apiClient.updateDataset(editingDataset.id, datasetForm);
+        // Update existing dataset (metadata only)
+        await apiClient.updateDataset(editingDataset.id, {
+          name: datasetForm.name,
+          description: datasetForm.description,
+        });
       } else {
-        await apiClient.createDataset(datasetForm);
+        // Create new dataset with file upload
+        if (!datasetForm.file) {
+          setFileError('Please select a CSV file');
+          return;
+        }
+        
+        if (!datasetForm.applicationProfileId) {
+          setError('Please select an application profile');
+          return;
+        }
+        
+        const formData = new FormData();
+        formData.append('applicationProfileId', datasetForm.applicationProfileId);
+        formData.append('name', datasetForm.name);
+        formData.append('description', datasetForm.description);
+        formData.append('file', datasetForm.file);
+        
+        await apiClient.createDatasetWithFile(formData);
       }
+      
       setDatasetDialogOpen(false);
       loadDatasets();
       if (selectedDataset && editingDataset?.id === selectedDataset.id) {
         loadDatasetDetails(selectedDataset.id);
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save dataset');
+      setError(err.response?.data?.error?.message || err.response?.data?.detail || 'Failed to save dataset');
+    }
+  };
+
+  const handleDownloadFile = async (datasetId: string) => {
+    try {
+      const blob = await apiClient.downloadDatasetFile(datasetId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dataset_${datasetId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || 'Failed to download file');
     }
   };
 
@@ -136,7 +232,7 @@ const DatasetsView: React.FC = () => {
       }
       loadDatasets();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete dataset');
+      setError(err.response?.data?.error?.message || err.response?.data?.detail || 'Failed to delete dataset');
     }
   };
 
@@ -246,9 +342,19 @@ const DatasetsView: React.FC = () => {
             <Typography variant="body1" paragraph>
               {selectedDataset.description}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Test Cases: {selectedDataset.testCases.length}
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Test Cases: {selectedDataset.testCases?.length || 0}
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={() => handleDownloadFile(selectedDataset.id)}
+              >
+                Download CSV
+              </Button>
+            </Box>
           </CardContent>
         </Card>
 
@@ -268,13 +374,13 @@ const DatasetsView: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
               <CircularProgress />
             </Box>
-          ) : selectedDataset.testCases.length === 0 ? (
+          ) : (selectedDataset.testCases?.length || 0) === 0 ? (
             <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 3 }}>
               No test cases yet. Add your first test case to get started.
             </Typography>
           ) : (
             <List>
-              {selectedDataset.testCases.map((testCase, index) => (
+              {(selectedDataset.testCases || []).map((testCase, index) => (
                 <React.Fragment key={testCase.id}>
                   {index > 0 && <Divider />}
                   <ListItem
@@ -413,7 +519,7 @@ const DatasetsView: React.FC = () => {
                   <TableCell>{dataset.name}</TableCell>
                   <TableCell>{dataset.description}</TableCell>
                   <TableCell>
-                    <Chip label={dataset.testCases.length} size="small" />
+                    <Chip label={dataset.testCases?.length || 0} size="small" />
                   </TableCell>
                   <TableCell>{new Date(dataset.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell align="right">
@@ -450,6 +556,24 @@ const DatasetsView: React.FC = () => {
       <Dialog open={datasetDialogOpen} onClose={() => setDatasetDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editingDataset ? 'Edit Dataset' : 'Create Dataset'}</DialogTitle>
         <DialogContent>
+          {!editingDataset && (
+            <FormControl fullWidth margin="dense" required>
+              <InputLabel>Application Profile</InputLabel>
+              <Select
+                value={datasetForm.applicationProfileId}
+                label="Application Profile"
+                onChange={(e) => setDatasetForm({ ...datasetForm, applicationProfileId: e.target.value })}
+              >
+                {applicationProfiles.map((profile) => (
+                  <MenuItem key={profile.id} value={profile.id}>
+                    {profile.name} ({profile.type})
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>Select the application this dataset will evaluate</FormHelperText>
+            </FormControl>
+          )}
+          
           <TextField
             autoFocus
             margin="dense"
@@ -460,6 +584,7 @@ const DatasetsView: React.FC = () => {
             value={datasetForm.name}
             onChange={(e) => setDatasetForm({ ...datasetForm, name: e.target.value })}
           />
+          
           <TextField
             margin="dense"
             label="Description"
@@ -471,6 +596,40 @@ const DatasetsView: React.FC = () => {
             value={datasetForm.description}
             onChange={(e) => setDatasetForm({ ...datasetForm, description: e.target.value })}
           />
+          
+          {!editingDataset && (
+            <Box sx={{ mt: 2 }}>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<UploadIcon />}
+                fullWidth
+                sx={{ mb: 1 }}
+              >
+                {datasetForm.file ? datasetForm.file.name : 'Upload CSV File'}
+                <input
+                  type="file"
+                  hidden
+                  accept=".csv"
+                  onChange={handleFileChange}
+                />
+              </Button>
+              <FormHelperText>
+                CSV format: Required column 'input', optional 'expected_output' and metadata columns
+              </FormHelperText>
+              {fileError && (
+                <Alert severity="error" sx={{ mt: 1 }}>
+                  {fileError}
+                </Alert>
+              )}
+            </Box>
+          )}
+          
+          {editingDataset && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              To update test cases, please upload a new CSV file by creating a new dataset.
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDatasetDialogOpen(false)}>Cancel</Button>

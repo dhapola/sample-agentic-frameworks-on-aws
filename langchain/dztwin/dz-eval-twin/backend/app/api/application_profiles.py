@@ -3,12 +3,12 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Request
 from pydantic import BaseModel, Field, AnyUrl
 
 from app.database.connection import database_manager
 from app.database.repository import DataRepository
-from app.middleware.error_handler import NotFoundError, ValidationError
+from app.middleware.error_handler import NotFoundError, ValidationError, UnauthorizedError
 from app.models.application_profile import ApplicationProfile, ApplicationType
 from app.services.application_profile_service import ApplicationProfileService
 from app.utils.validation import validate_customer_id, validate_application_profile_id
@@ -33,10 +33,12 @@ class CreateApplicationProfileRequest(BaseModel):
     )
     custom_headers: Optional[Dict[str, str]] = Field(
         default=None,
+        alias="customHeaders",
         description="Custom HTTP headers"
     )
     
     class Config:
+        populate_by_name = True  # Accept both snake_case and camelCase
         json_schema_extra = {
             "example": {
                 "name": "Production Chatbot",
@@ -48,7 +50,7 @@ class CreateApplicationProfileRequest(BaseModel):
                     "type": "bearer",
                     "token": "sk-..."
                 },
-                "custom_headers": {
+                "customHeaders": {
                     "X-Custom-Header": "value"
                 }
             }
@@ -68,10 +70,12 @@ class UpdateApplicationProfileRequest(BaseModel):
     )
     custom_headers: Optional[Dict[str, str]] = Field(
         None,
+        alias="customHeaders",
         description="Custom HTTP headers"
     )
     
     class Config:
+        populate_by_name = True  # Accept both snake_case and camelCase
         json_schema_extra = {
             "example": {
                 "name": "Production Chatbot Updated",
@@ -84,12 +88,16 @@ class ApplicationProfileResponse(BaseModel):
     """Response model for application profile data."""
     
     id: str
-    customer_id: str
+    customer_id: str = Field(..., alias="customerId")
     name: str
     type: str
-    connection_config: Dict[str, Any]
-    created_at: str
-    updated_at: str
+    connection_config: Dict[str, Any] = Field(..., alias="connectionConfig")
+    created_at: str = Field(..., alias="createdAt")
+    updated_at: str = Field(..., alias="updatedAt")
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True  # Serialize using aliases (camelCase)
     
     @classmethod
     def from_application_profile(cls, profile: ApplicationProfile) -> "ApplicationProfileResponse":
@@ -189,6 +197,42 @@ async def list_customer_application_profiles(
         validated_customer_id = validate_customer_id(customer_id)
         
         profiles = await service.get_profiles_by_customer(validated_customer_id)
+        return [ApplicationProfileResponse.from_application_profile(p) for p in profiles]
+    except ValueError as e:
+        raise ValidationError(str(e))
+
+
+@router.get(
+    "/application-profiles",
+    response_model=List[ApplicationProfileResponse],
+    summary="List application profiles (tenant-scoped)",
+    description="Get all application profiles for the current customer context"
+)
+async def list_application_profiles(
+    request: Request,
+    service: ApplicationProfileService = Depends(get_application_profile_service)
+) -> List[ApplicationProfileResponse]:
+    """
+    Get all application profiles for the current customer.
+    
+    Args:
+        request: FastAPI request object
+        service: Application profile service instance
+        
+    Returns:
+        List of application profiles for the customer
+        
+    Raises:
+        UnauthorizedError: If customer context missing
+        ValidationError: If validation fails
+    """
+    # Get customer_id from request state (set by CustomerContextMiddleware)
+    customer_id = getattr(request.state, "customer_id", None)
+    if not customer_id:
+        raise UnauthorizedError("Customer context required. Please provide X-Customer-ID header.")
+    
+    try:
+        profiles = await service.get_profiles_by_customer(customer_id)
         return [ApplicationProfileResponse.from_application_profile(p) for p in profiles]
     except ValueError as e:
         raise ValidationError(str(e))

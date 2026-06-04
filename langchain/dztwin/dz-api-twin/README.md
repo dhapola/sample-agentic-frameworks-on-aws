@@ -119,7 +119,7 @@ Example `.env`:
 ```env
 EMBEDDING_PROVIDER=bedrock
 AWS_REGION=us-west-2
-QDRANT_USE_EMBEDDED=true
+QDRANT_USE_EMBEDDED=false
 CRAWLER_DATA_PATH=../crawler/data
 ```
 
@@ -266,16 +266,31 @@ npm run dev     # Development server
 npm run build   # Production build (minified)
 ```
 
-### Testing
-```bash
-# Backend tests
-cd backend
-python test_connection.py
-python verify_setup.py
+## Testing
 
-# Frontend demo
+### Quick Testing (5 minutes)
+
+Follow the [Testing Quick Start Guide](TESTING_QUICKSTART.md) to verify your setup:
+
+```bash
+# 1. Verify environment
+cd backend && python pre_test_check.py
+
+# 2. Start services
+# Terminal 1: cd backend && python main.py
+# Terminal 2: cd frontend && npm run dev
+
+# 3. Open test page
 open http://localhost:8000/example.html
+
+# 4. Run basic tests from TESTING_QUICKSTART.md
 ```
+
+### Comprehensive Testing
+
+For full manual testing with 45+ test cases, see:
+- **[Manual Test Plan](MANUAL_TEST_PLAN.md)** - Complete test suite with detailed steps
+- **[Test Queries](TEST_QUERIES.md)** - 100+ pre-written test queries organized by category
 
 ## Troubleshooting
 

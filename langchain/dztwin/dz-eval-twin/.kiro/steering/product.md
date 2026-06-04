@@ -23,8 +23,10 @@ Gen AI Evaluation Platform is a multi-tenant SaaS platform for systematically te
   - Connection config: `endpoint`, `authentication`, `timeout`, `retries`, `custom_headers`
   
 - **Dataset**: Collection of test cases with expected outputs
-  - Fields: `id`, `customer_id`, `name`, `description`, `test_cases`, `created_at`, `updated_at`
-  - Embedded test cases within dataset document
+  - Fields: `id`, `customer_id`, `application_profile_id`, `name`, `description`, `file_path`, `test_cases`, `created_at`, `updated_at`
+  - Linked to an application profile for targeted evaluation
+  - Test cases loaded from CSV file upload
+  - CSV format: Required column `input`, optional columns `expected_output` and any metadata columns
   
 - **Test Case**: Single input/output pair for evaluation
   - Fields: `id`, `input`, `expected_output`, `metadata`
@@ -78,12 +80,13 @@ All data operations are scoped by `customerId`:
 
 ### Tenant-Scoped Endpoints (Require X-Customer-ID Header)
 - **Datasets**
-  - `POST /api/datasets` - Create dataset
+  - `POST /api/datasets` - Create dataset with CSV file upload
   - `GET /api/datasets` - List customer's datasets
   - `GET /api/datasets/{dataset_id}` - Get dataset details
-  - `PUT /api/datasets/{dataset_id}` - Update dataset
+  - `GET /api/datasets/{dataset_id}/file` - Download dataset CSV file
+  - `PUT /api/datasets/{dataset_id}` - Update dataset metadata
   - `DELETE /api/datasets/{dataset_id}` - Delete dataset
-  - `POST /api/datasets/{dataset_id}/test-cases` - Add test case
+  - `POST /api/datasets/{dataset_id}/test-cases` - Add test case (deprecated, use CSV upload)
   - `PUT /api/datasets/{dataset_id}/test-cases/{test_case_id}` - Update test case
   - `DELETE /api/datasets/{dataset_id}/test-cases/{test_case_id}` - Delete test case
 
@@ -102,8 +105,9 @@ All data operations are scoped by `customerId`:
 ### 1. Setup Phase
 1. **Create Customer** (Admin): Register a new tenant organization
 2. **Create Application Profile** (Admin): Configure connection to gen AI application
-3. **Create Dataset** (Tenant): Define test cases with inputs and expected outputs
-4. **Add Test Cases** (Tenant): Populate dataset with test scenarios
+3. **Create Dataset** (Tenant): Upload CSV file with test cases linked to an application profile
+   - CSV format: `input` (required), `expected_output` (optional), additional metadata columns (optional)
+4. **Review Test Cases** (Tenant): View parsed test cases from uploaded CSV
 
 ### 2. Execution Phase
 1. **Start Evaluation Run** (Tenant): Execute dataset against application profile

@@ -26,7 +26,7 @@ import apiClient from '../services/api';
 import { useCustomer } from '../contexts/CustomerContext';
 
 const EvaluationsView: React.FC = () => {
-  const { currentCustomer } = useCustomer();
+  const { currentCustomer, isReady } = useCustomer();
   const [runs, setRuns] = useState<EvaluationRun[]>([]);
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [profiles, setProfiles] = useState<ApplicationProfile[]>([]);
@@ -42,12 +42,12 @@ const EvaluationsView: React.FC = () => {
   });
 
   useEffect(() => {
-    if (currentCustomer) {
+    if (currentCustomer && isReady) {
       loadRuns();
       loadDatasets();
       loadProfiles();
     }
-  }, [currentCustomer]);
+  }, [currentCustomer, isReady]);
 
   const loadRuns = async () => {
     try {
@@ -262,7 +262,7 @@ const EvaluationsView: React.FC = () => {
             <option value="">Select a dataset</option>
             {datasets.map((dataset) => (
               <option key={dataset.id} value={dataset.id}>
-                {dataset.name} ({dataset.testCases.length} test cases)
+                {dataset.name} ({dataset.testCases?.length || 0} test cases)
               </option>
             ))}
           </TextField>

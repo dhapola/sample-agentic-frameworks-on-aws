@@ -55,10 +55,13 @@ app = FastAPI(
 )
 
 # Configure CORS (must be added first to handle preflight requests)
+cors_origins = settings.cors_origins_list
+allow_credentials = "*" not in cors_origins  # Credentials not allowed with wildcard
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

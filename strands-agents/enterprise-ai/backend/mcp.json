@@ -1,7 +1,5 @@
 {
   "mcpServers": {
-    
-
     "postgres-mcp-server": {
       "command": "postgres-mcp",
       "args": ["--access-mode=restricted"],
@@ -14,21 +12,18 @@
       "args": ["awslabs.aws-api-mcp-server@latest"],
       "env": {
         "AWS_REGION": "us-west-2",
-        "AWS_API_MCP_WORKING_DIR": "/Users/dhapola/Learn/temp"
+        "AWS_API_MCP_WORKING_DIR": "/Users/dhapola/Learn/open-source/sample-agentic-frameworks-on-aws/strands-agents/enterprise-ai/temp"
       },
       "disabled": false,
       "autoApprove": []
     },
     
-    "awslabs.cost-explorer-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.cost-explorer-mcp-server@latest"],
-      "env": {
-        "FASTMCP_LOG_LEVEL": "ERROR",
-        "AWS_PROFILE": "default"
-      },
-      "disabled": false,
-      "autoApprove": []
+    "eks-mcp" : {
+      "disabled" : false,
+      "type" : "stdio",
+      "command" : "uvx",
+      "args" : [ "mcp-proxy-for-aws@latest", "https://eks-mcp.us-west-2.api.aws/mcp", "--service", "eks-mcp", "--profile", "default", "--region", "us-west-2", "--read-only" ],
+      "autoApprove" : [ ]
     }
   }
 }

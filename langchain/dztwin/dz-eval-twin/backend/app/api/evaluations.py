@@ -30,14 +30,15 @@ router = APIRouter(prefix="/api/evaluations", tags=["evaluations"])
 class StartEvaluationRequest(BaseModel):
     """Request model for starting an evaluation run."""
     
-    dataset_id: str = Field(..., description="ID of the dataset to evaluate")
-    application_profile_id: str = Field(..., description="ID of the application profile to test")
+    dataset_id: str = Field(..., alias="datasetId", description="ID of the dataset to evaluate")
+    application_profile_id: str = Field(..., alias="applicationProfileId", description="ID of the application profile to test")
     
     class Config:
+        populate_by_name = True  # Accept both snake_case and camelCase
         json_schema_extra = {
             "example": {
-                "dataset_id": "ds_abc123",
-                "application_profile_id": "prof_xyz789"
+                "datasetId": "ds_abc123",
+                "applicationProfileId": "prof_xyz789"
             }
         }
 
@@ -45,12 +46,13 @@ class StartEvaluationRequest(BaseModel):
 class CompareRunsRequest(BaseModel):
     """Request model for comparing multiple evaluation runs."""
     
-    run_ids: List[str] = Field(..., min_length=2, description="List of evaluation run IDs to compare")
+    run_ids: List[str] = Field(..., alias="runIds", min_length=2, description="List of evaluation run IDs to compare")
     
     class Config:
+        populate_by_name = True  # Accept both snake_case and camelCase
         json_schema_extra = {
             "example": {
-                "run_ids": ["run_abc123", "run_def456", "run_ghi789"]
+                "runIds": ["run_abc123", "run_def456", "run_ghi789"]
             }
         }
 
@@ -75,13 +77,17 @@ class IndividualMetricsResponse(BaseModel):
 class ResponseResponse(BaseModel):
     """Response model for evaluation response data."""
     
-    test_case_id: str
+    test_case_id: str = Field(..., alias="testCaseId")
     input: str
     output: str
     latency: float
     timestamp: str
     error: Optional[str] = None
-    individual_metrics: Optional[IndividualMetricsResponse] = None
+    individual_metrics: Optional[IndividualMetricsResponse] = Field(None, alias="individualMetrics")
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True  # Serialize using aliases (camelCase)
     
     @classmethod
     def from_response(cls, response: Response) -> "ResponseResponse":
@@ -100,14 +106,18 @@ class ResponseResponse(BaseModel):
 class AggregatedMetricsResponse(BaseModel):
     """Response model for aggregated metrics."""
     
-    average_accuracy: float
-    average_relevance: float
-    average_latency: float
-    median_latency: float
-    p95_latency: float
-    success_rate: float
-    total_test_cases: int
-    failed_test_cases: int
+    average_accuracy: float = Field(..., alias="averageAccuracy")
+    average_relevance: float = Field(..., alias="averageRelevance")
+    average_latency: float = Field(..., alias="averageLatency")
+    median_latency: float = Field(..., alias="medianLatency")
+    p95_latency: float = Field(..., alias="p95Latency")
+    success_rate: float = Field(..., alias="successRate")
+    total_test_cases: int = Field(..., alias="totalTestCases")
+    failed_test_cases: int = Field(..., alias="failedTestCases")
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True  # Serialize using aliases (camelCase)
     
     @classmethod
     def from_metrics(cls, metrics: Optional[AggregatedMetrics]) -> Optional["AggregatedMetricsResponse"]:
@@ -130,14 +140,18 @@ class EvaluationRunResponse(BaseModel):
     """Response model for evaluation run data."""
     
     id: str
-    customer_id: str
-    dataset_id: str
-    application_profile_id: str
+    customer_id: str = Field(..., alias="customerId")
+    dataset_id: str = Field(..., alias="datasetId")
+    application_profile_id: str = Field(..., alias="applicationProfileId")
     status: str
-    start_time: str
-    end_time: Optional[str] = None
+    start_time: str = Field(..., alias="startTime")
+    end_time: Optional[str] = Field(None, alias="endTime")
     responses: List[ResponseResponse]
     metrics: Optional[AggregatedMetricsResponse] = None
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True  # Serialize using aliases (camelCase)
     
     @classmethod
     def from_evaluation_run(cls, run: EvaluationRun) -> "EvaluationRunResponse":
@@ -159,13 +173,17 @@ class EvaluationRunSummaryResponse(BaseModel):
     """Response model for evaluation run summary (without full responses)."""
     
     id: str
-    customer_id: str
-    dataset_id: str
-    application_profile_id: str
+    customer_id: str = Field(..., alias="customerId")
+    dataset_id: str = Field(..., alias="datasetId")
+    application_profile_id: str = Field(..., alias="applicationProfileId")
     status: str
-    start_time: str
-    end_time: Optional[str] = None
+    start_time: str = Field(..., alias="startTime")
+    end_time: Optional[str] = Field(None, alias="endTime")
     metrics: Optional[AggregatedMetricsResponse] = None
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True  # Serialize using aliases (camelCase)
     
     @classmethod
     def from_evaluation_run(cls, run: EvaluationRun) -> "EvaluationRunSummaryResponse":
@@ -185,11 +203,15 @@ class EvaluationRunSummaryResponse(BaseModel):
 class ComparisonMetrics(BaseModel):
     """Metrics for a single run in comparison."""
     
-    run_id: str
-    dataset_id: str
-    application_profile_id: str
-    start_time: str
+    run_id: str = Field(..., alias="runId")
+    dataset_id: str = Field(..., alias="datasetId")
+    application_profile_id: str = Field(..., alias="applicationProfileId")
+    start_time: str = Field(..., alias="startTime")
     metrics: Optional[AggregatedMetricsResponse] = None
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True  # Serialize using aliases (camelCase)
 
 
 class CompareRunsResponse(BaseModel):

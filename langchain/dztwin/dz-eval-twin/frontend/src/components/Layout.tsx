@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import {
   AppBar,
@@ -12,6 +12,19 @@ import {
   Toolbar,
   Typography,
   Container,
+  Switch,
+  FormControlLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  Alert,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -21,12 +34,64 @@ import {
   Assessment as ResultsIcon,
 } from '@mui/icons-material';
 import { useCustomer } from '../contexts/CustomerContext';
+import { Customer } from '../types';
+import apiClient from '../services/api';
 
 const drawerWidth = 240;
 
 const Layout: React.FC = () => {
   const location = useLocation();
-  const { currentCustomer, isAdmin } = useCustomer();
+  const { currentCustomer, setCurrentCustomer, isAdmin, setIsAdmin } = useCustomer();
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+
+  // Load customers on mount
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+
+  const loadCustomers = async () => {
+    try {
+      const data = await apiClient.getCustomers();
+      setCustomers(data);
+    } catch (err) {
+      console.error('Failed to load customers:', err);
+    }
+  };
+
+  // Simple admin credentials (in production, use proper authentication)
+  const ADMIN_PASSWORD = 'admin123';
+
+  const handleAdminToggle = (checked: boolean) => {
+    if (checked) {
+      // Show auth dialog when enabling admin mode
+      setAuthDialogOpen(true);
+      setAdminPassword('');
+      setAuthError('');
+    } else {
+      // Disable admin mode directly
+      setIsAdmin(false);
+    }
+  };
+
+  const handleAdminAuth = () => {
+    if (adminPassword === ADMIN_PASSWORD) {
+      setIsAdmin(true);
+      setAuthDialogOpen(false);
+      setAdminPassword('');
+      setAuthError('');
+    } else {
+      setAuthError('Invalid admin password');
+    }
+  };
+
+  const handleAuthCancel = () => {
+    setAuthDialogOpen(false);
+    setAdminPassword('');
+    setAuthError('');
+  };
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
@@ -42,11 +107,49 @@ const Layout: React.FC = () => {
         position="fixed"
         sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
       >
-        <Toolbar>
+        <Toolbar variant="dense" sx={{ minHeight: 48 }}>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             Gen AI Evaluation Platform
           </Typography>
-          {currentCustomer && (
+          
+          {/* Customer Selector */}
+          {!isAdmin && customers.length > 0 && (
+            <FormControl sx={{ minWidth: 200, mr: 2 }} size="small">
+              <InputLabel sx={{ color: 'white' }}>Customer</InputLabel>
+              <Select
+                value={currentCustomer?.id || ''}
+                onChange={(e) => {
+                  const customer = customers.find(c => c.id === e.target.value);
+                  setCurrentCustomer(customer || null);
+                }}
+                label="Customer"
+                displayEmpty
+                sx={{ bgcolor: 'white' }}
+              >
+                <MenuItem value="">
+                  <em>Select Customer</em>
+                </MenuItem>
+                {customers.map((customer) => (
+                  <MenuItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+          
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isAdmin}
+                onChange={(e) => handleAdminToggle(e.target.checked)}
+                color="secondary"
+              />
+            }
+            label="Admin Mode"
+            sx={{ mr: 2 }}
+          />
+          {currentCustomer && isAdmin && (
             <Typography variant="body2">
               Customer: {currentCustomer.name}
             </Typography>
@@ -95,6 +198,41 @@ const Layout: React.FC = () => {
           <Outlet />
         </Container>
       </Box>
+
+      {/* Admin Authentication Dialog */}
+      <Dialog open={authDialogOpen} onClose={handleAuthCancel}>
+        <DialogTitle>Admin Authentication</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Enter admin password to enable admin mode
+          </Typography>
+          {authError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {authError}
+            </Alert>
+          )}
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Admin Password"
+            type="password"
+            fullWidth
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleAdminAuth();
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleAuthCancel}>Cancel</Button>
+          <Button onClick={handleAdminAuth} variant="contained">
+            Authenticate
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

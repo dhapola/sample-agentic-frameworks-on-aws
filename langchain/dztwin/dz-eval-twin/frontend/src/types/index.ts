@@ -38,8 +38,10 @@ export interface TestCase {
 export interface Dataset {
   id: string;
   customerId: string;
+  applicationProfileId: string;
   name: string;
   description: string;
+  filePath: string;
   testCases: TestCase[];
   createdAt: string;
   updatedAt: string;

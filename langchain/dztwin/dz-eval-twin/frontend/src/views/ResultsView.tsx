@@ -46,7 +46,7 @@ import apiClient from '../services/api';
 import { useCustomer } from '../contexts/CustomerContext';
 
 const ResultsView: React.FC = () => {
-  const { currentCustomer } = useCustomer();
+  const { currentCustomer, isReady } = useCustomer();
   const [runs, setRuns] = useState<EvaluationRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<EvaluationRun | null>(null);
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -57,12 +57,12 @@ const ResultsView: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
   useEffect(() => {
-    if (currentCustomer) {
+    if (currentCustomer && isReady) {
       loadRuns();
       loadDatasets();
       loadProfiles();
     }
-  }, [currentCustomer]);
+  }, [currentCustomer, isReady]);
 
   const loadRuns = async () => {
     try {

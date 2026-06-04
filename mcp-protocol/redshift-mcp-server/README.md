@@ -49,6 +49,8 @@ Point any MCP-compatible client at the server endpoint with your Redshift SQL cr
 }
 ```
 
+> **⚠️ Warning:** Database credentials are stored in plain text in the MCP client configuration file on your local machine. Ensure appropriate file-system permissions and avoid committing this file to version control. For production use, consider integrating with AWS Secrets Manager or Redshift IAM `GetClusterCredentials` for short-lived, automatically rotated credentials.
+
 ## Project Structure
 
 ```

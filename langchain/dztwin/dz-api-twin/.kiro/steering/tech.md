@@ -5,73 +5,87 @@
 **Framework**: FastAPI (Python 3.13+)
 - Modern async Python web framework
 - Auto-generated OpenAPI docs (Swagger UI + ReDoc)
-- Pydantic for data validation
+- Pydantic v2 for data validation with field validators
 - Security headers middleware for XSS/clickjacking protection
 
 **AI Integration**: LangChain
-- Unified interface across multiple AI providers
-- Streaming support via async generators
+- Unified interface across multiple AI providers (Bedrock, OpenAI, Anthropic, Gemini)
+- Streaming support via async generators (`astream`)
 - Provider factory pattern for extensibility
-- System prompts with markdown formatting instructions
+- System prompts with markdown formatting instructions and RAG context injection
+- Conditional imports to avoid missing dependency errors
 
 **RAG Integration**: 
-- `rag_service.py` - Semantic search over documentation
-- Qdrant vector database integration
-- Context injection into LLM prompts
-- Source attribution in responses
+- `rag_service.py` - Semantic search over documentation using Qdrant
+- BedrockEmbeddings (Titan v2) for query vectorization
+- Context injection into LLM system prompts with source attribution
+- `query_points` API for vector search (Qdrant new API)
+- Top-K retrieval with configurable limit
 
 **Security Features**:
-- Input sanitization with prompt injection detection
+- Input sanitization with prompt injection pattern detection
 - XSS protection via DOMPurify on frontend
-- Security headers (X-Content-Type-Options, X-Frame-Options, etc.)
-- Error message sanitization
-- Origin validation for postMessage
-- UUID validation for conversation IDs
+- Security headers (X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy)
+- Error message sanitization with PII redaction
+- Origin validation for postMessage communication
+- UUID v4 validation for conversation IDs with Pydantic field validators
+- Message length limits (1-4000 chars)
 
 **Dependencies**:
 - `fastapi` - Web framework
 - `uvicorn` - ASGI server
-- `langchain` + provider-specific packages (`langchain-aws`, `langchain-openai`, `langchain-anthropic`, `langchain-google-genai`)
+- `langchain-core` + provider-specific packages (`langchain-aws`, `langchain-openai`, `langchain-anthropic`, `langchain-google-genai`)
 - `boto3` - AWS SDK for Bedrock
-- `pydantic-settings` - Environment-based configuration
+- `pydantic` v2 + `pydantic-settings` - Environment-based configuration with validation
 - `qdrant-client` - Vector database client
 
 **Configuration**: Environment variables via `.env` file
-- Pydantic Settings for type-safe config
-- Provider-specific settings (API keys, model IDs, etc.)
-- RAG configuration (enabled flag, Qdrant URL, collection name, top-k)
-- Logging configuration (level, file, LLM request logging)
+- Pydantic Settings v2 for type-safe config with `SettingsConfigDict`
+- Provider-specific settings (API keys, model IDs, regions)
+- RAG configuration (enabled flag, Qdrant URL/API key, collection name, top-k)
+- Logging configuration (level, file path, format, LLM request logging toggle)
+- CORS origins configuration
 
 ## Frontend
 
 **Stack**: Vanilla JavaScript (ES6+)
-- No framework dependencies (except marked.js and DOMPurify loaded via CDN)
+- No framework dependencies (marked.js and DOMPurify loaded dynamically via CDN)
 - Native Web APIs (fetch, postMessage, SSE)
-- ES6 module system for code organization
+- ES6 module system with dynamic imports
 
 **Dependencies**:
-- `marked` (v11.1.1) - Markdown rendering for bot responses (CDN)
-- `DOMPurify` (v3.0.8) - XSS protection for rendered HTML (CDN)
-- `terser` - Minification for production builds
+- `marked` (v11.1.1) - Markdown rendering with GFM support (CDN, dynamically loaded)
+- `DOMPurify` (v3.0.8) - XSS protection for rendered HTML (CDN, dynamically loaded)
+- `terser` - Minification for production builds (dev dependency)
 
 **Security Features**:
-- DOMPurify sanitization of all rendered markdown
-- Origin validation for postMessage communication
-- Allowed tags/attributes whitelist for HTML
-- URL scheme validation (http/https/mailto only)
-- Fallback markdown parser with HTML escaping
+- DOMPurify sanitization with strict allowed tags/attributes whitelist
+- Origin validation for postMessage (localhost/127.0.0.1 in dev, configurable for prod)
+- URL scheme validation (http/https/mailto/tel/callto/sms/cid/xmpp via regex)
+- Fallback markdown parser with HTML escaping when marked.js fails to load
+- Graceful degradation if DOMPurify fails to load
 
 **Architecture**:
-- `chat-plugin.js` - Entry point, creates FAB and manages iframe lifecycle
-- `widget.js` - Chat UI logic inside iframe, handles streaming and markdown rendering
-- `chat-api.js` - API client with SSE streaming support
+- `chat-plugin.js` - Entry point, creates FAB, manages iframe lifecycle, handles fullscreen toggle
+- `widget.js` - Chat UI logic inside iframe, handles streaming, markdown rendering, session persistence
+- `chat-api.js` - API client with SSE streaming support and async generator pattern
 - CSS isolation via iframe prevents conflicts with host page
+- Lazy loading: iframe content loads only when FAB is clicked
 
 **Streaming Implementation**:
 - SSE (Server-Sent Events) for real-time token streaming
-- Newline escaping/unescaping for SSE protocol compatibility
-- Progressive rendering with final markdown parsing
+- Newline escaping/unescaping for SSE protocol compatibility (`\\n` ↔ `\n`)
+- Progressive text rendering during streaming, markdown parsing on completion
+- Event-based protocol: `data:`, `event: done`, `event: error`
 - Error handling with sanitized error messages
+
+**UI Features**:
+- Resizable and fullscreen modes with smooth transitions
+- Session persistence via sessionStorage
+- Auto-resizing textarea (max 120px height)
+- Typing indicator with animated dots
+- Conversation history loading on widget open
+- Configurable themes and positioning
 
 ## API Doc Indexer
 
@@ -79,68 +93,89 @@
 
 **Stack**: Python 3.13+
 - Web crawler using Crawl4AI for LLM-optimized extraction
-- Async architecture for fast crawling
+- Async architecture with `AsyncWebCrawler` for fast crawling
+- BeautifulSoup + html2text fallback for manual markdown conversion
 - Clean markdown output for AI applications
 
 **Dependencies**:
-- `crawl4ai` - LLM-friendly web crawler
+- `crawl4ai` - LLM-friendly web crawler with browser automation
+- `beautifulsoup4` - HTML parsing for fallback extraction
+- `html2text` - HTML to markdown conversion
 - `python-dotenv` - Environment variable management
-- `playwright` - Browser automation (installed separately)
+- `playwright` - Browser automation (installed separately via `playwright install`)
 
 **Architecture**:
-- `crawler.py` - Async crawler with Crawl4AI integration
-- `config.py` - Environment-based configuration
+- `crawler.py` - Async crawler with Crawl4AI integration and fallback extraction
+- `config.py` - Pydantic-based environment configuration
 - Self-contained module with own `.env` file
 - MD5 hash-based file naming for uniqueness
+- Domain-restricted crawling with URL normalization
+- Configurable depth, delay, and page limits
+
+**Crawling Strategy**:
+- BFS (breadth-first search) with depth tracking
+- Network idle wait strategy with additional JS execution delay
+- Manual link extraction from HTML when Crawl4AI fails
+- Main content detection (markdown-body, article, main tags)
+- Polite crawling with configurable delays (default 1.0s)
 
 ### Ingester
 
 **Stack**: Python 3.13+
-- Vector embeddings using LangChain
-- Qdrant vector database for storage and search
-- Multiple embedding provider support
-- Async/concurrent processing for performance
+- Vector embeddings using LangChain with multiple provider support
+- Qdrant vector database for storage and search (embedded or server mode)
+- Async/concurrent processing with ThreadPoolExecutor for performance
+- Batch processing with semaphore-based concurrency control
 
 **Dependencies**:
 - `qdrant-client` - Vector database client
-- `langchain` + `langchain-core` - AI framework
-- `langchain-aws` - AWS Bedrock embeddings
+- `langchain-core` - AI framework core
+- `langchain-aws` - AWS Bedrock embeddings (default)
 - `langchain-openai` - OpenAI embeddings (optional)
 - `langchain-huggingface` - HuggingFace embeddings (optional)
 - `boto3` - AWS SDK for Bedrock
 - `python-dotenv` - Environment management
-- `tqdm` - Progress bars (async support)
+- `tqdm` - Progress bars with async support (`tqdm.asyncio`)
 
 **Architecture**:
-- `embedder.py` - LangChain embedding providers with factory pattern
-- `vector_store.py` - Qdrant integration (embedded or server mode)
-- `ingest.py` - Async pipeline with concurrent batch processing
-- `search.py` - CLI tool for semantic search
+- `embedder.py` - LangChain embedding providers with factory pattern and abstract base class
+- `vector_store.py` - Qdrant integration with hash-based point IDs for deduplication
+- `ingest.py` - Async pipeline with concurrent batch processing and semaphore control
+- `search.py` - CLI tool for semantic search with query vectorization
 - `browse.py` - Web UI for browsing indexed documents
-- `diagnose.py` - Data quality analysis tool
+- `diagnose.py` - Data quality analysis tool (chunk size stats, empty content detection)
 - `benchmark.py` - Performance estimation tool
-- `config.py` - Environment-based configuration
+- `config.py` - Pydantic-based environment configuration
 - Self-contained module with own `.env` file
 
 **Performance**:
-- Async/concurrent processing (5 batches simultaneously by default)
-- ThreadPoolExecutor for sync LangChain operations
-- Hash-based point IDs (MD5) for safe concurrent upserts and deduplication
-- Optimized batch sizes (100 chunks per batch)
-- Semaphore-based concurrency control
+- Async/concurrent processing (5 batches simultaneously by default, configurable)
+- ThreadPoolExecutor for sync LangChain operations (max 10 workers)
+- Hash-based point IDs (MD5) for safe concurrent upserts and automatic deduplication
+- Optimized batch sizes (100 chunks per batch by default)
+- Semaphore-based concurrency control to prevent API rate limiting
 - 12-24x faster than sequential processing
+- Progress tracking with `tqdm.asyncio`
 
 **Chunking Strategy**:
-- Max 1500 characters per chunk (~375 tokens)
-- Paragraph-based splitting with fallback to sentences
+- Max 1500 characters per chunk (~375 tokens at 4:1 char:token ratio)
+- Paragraph-based splitting (double newlines) with fallback to sentences
 - Word-level splitting for oversized content
-- Preserves context with overlap
-- Validates chunk sizes before embedding
+- Preserves context with proper boundaries
+- Validates chunk sizes before embedding (6000 char hard limit for safety)
+- Skips empty chunks and overly long content
 
 **Embedding Providers**:
-- AWS Bedrock (Titan v2) - Default, 1024 dimensions
+- AWS Bedrock (Titan v2) - Default, 1024 dimensions, `amazon.titan-embed-text-v2:0`
 - OpenAI (text-embedding-3-small) - 1536 dimensions
-- HuggingFace (local models) - Variable dimensions
+- HuggingFace (local models) - Variable dimensions, `sentence-transformers/all-MiniLM-L6-v2` default
+
+**Vector Store**:
+- Qdrant with cosine distance similarity
+- Hash-based point IDs prevent duplicates during concurrent ingestion
+- Upsert operation for safe concurrent writes
+- Collection management (create, delete, exists check, info retrieval)
+- Embedded mode for development, server mode for production
 
 ## Common Commands
 

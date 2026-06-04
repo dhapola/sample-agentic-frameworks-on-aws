@@ -23,19 +23,20 @@ class CreateCustomerRequest(BaseModel):
     """Request model for creating a customer."""
     
     name: str = Field(..., min_length=1, max_length=200, description="Customer organization name")
-    contact_email: EmailStr = Field(..., description="Primary contact email address")
-    contact_phone: Optional[str] = Field(None, description="Contact phone number")
+    contact_email: EmailStr = Field(..., alias="contactEmail", description="Primary contact email address")
+    contact_phone: Optional[str] = Field(None, alias="contactPhone", description="Contact phone number")
     configuration: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Customer-specific configuration settings"
     )
     
     class Config:
+        populate_by_name = True  # Accept both snake_case and camelCase
         json_schema_extra = {
             "example": {
                 "name": "Acme Corporation",
-                "contact_email": "admin@acme.com",
-                "contact_phone": "+1-555-0100",
+                "contactEmail": "admin@acme.com",
+                "contactPhone": "+1-555-0100",
                 "configuration": {
                     "max_concurrent_runs": 5,
                     "default_timeout": 30
@@ -48,14 +49,15 @@ class UpdateCustomerRequest(BaseModel):
     """Request model for updating a customer."""
     
     name: Optional[str] = Field(None, min_length=1, max_length=200, description="Customer organization name")
-    contact_email: Optional[EmailStr] = Field(None, description="Primary contact email address")
-    contact_phone: Optional[str] = Field(None, description="Contact phone number")
+    contact_email: Optional[EmailStr] = Field(None, alias="contactEmail", description="Primary contact email address")
+    contact_phone: Optional[str] = Field(None, alias="contactPhone", description="Contact phone number")
     configuration: Optional[Dict[str, Any]] = Field(
         None,
         description="Customer-specific configuration settings"
     )
     
     class Config:
+        populate_by_name = True  # Accept both snake_case and camelCase
         json_schema_extra = {
             "example": {
                 "name": "Acme Corporation Updated",
@@ -69,11 +71,15 @@ class CustomerResponse(BaseModel):
     
     id: str
     name: str
-    contact_email: str
-    contact_phone: Optional[str] = None
+    contact_email: str = Field(..., alias="contactEmail")
+    contact_phone: Optional[str] = Field(None, alias="contactPhone")
     configuration: Optional[Dict[str, Any]] = None
-    created_at: str
-    updated_at: str
+    created_at: str = Field(..., alias="createdAt")
+    updated_at: str = Field(..., alias="updatedAt")
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True  # Serialize using aliases (camelCase)
     
     @classmethod
     def from_customer(cls, customer: Customer) -> "CustomerResponse":

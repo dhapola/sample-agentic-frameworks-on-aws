@@ -4,10 +4,12 @@ Provides business logic for dataset CRUD operations with tenant isolation.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
-from datetime import datetime
+import os
 import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
+from app.config import settings
 from app.database.repository import DataRepository
 from app.models.dataset import Dataset
 from app.models.test_case import TestCase
@@ -35,16 +37,22 @@ class DatasetService:
     async def create_dataset(
         self,
         customer_id: str,
+        application_profile_id: str,
         name: str,
-        description: str
+        description: str,
+        file_path: str,
+        test_cases: List[TestCase]
     ) -> Dataset:
         """
-        Create a new dataset for a customer.
+        Create a new dataset for a customer with CSV file.
         
         Args:
             customer_id: Customer ID for tenant isolation
+            application_profile_id: Application profile ID
             name: Dataset name
             description: Dataset description
+            file_path: Path to the uploaded CSV file
+            test_cases: Parsed test cases from CSV
             
         Returns:
             Created dataset
@@ -57,8 +65,14 @@ class DatasetService:
         if not customer_id or not customer_id.strip():
             raise ValueError("Customer ID is required")
         
+        if not application_profile_id or not application_profile_id.strip():
+            raise ValueError("Application profile ID is required")
+        
         if not name or not name.strip():
             raise ValueError("Dataset name is required")
+        
+        if not file_path or not file_path.strip():
+            raise ValueError("File path is required")
         
         # Generate dataset ID
         dataset_id = f"dataset_{uuid.uuid4().hex[:12]}"
@@ -67,9 +81,11 @@ class DatasetService:
         dataset = Dataset(
             id=dataset_id,
             customer_id=customer_id.strip(),
+            application_profile_id=application_profile_id.strip(),
             name=name.strip(),
             description=description.strip() if description else "",
-            test_cases=[],
+            file_path=file_path,
+            test_cases=test_cases,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
@@ -79,6 +95,72 @@ class DatasetService:
         
         logger.info(f"Created dataset: {created_dataset.id} for customer: {customer_id}")
         return created_dataset
+    
+    async def save_dataset_file(
+        self,
+        customer_id: str,
+        filename: str,
+        content: bytes
+    ) -> str:
+        """
+        Save uploaded CSV file to disk.
+        
+        Args:
+            customer_id: Customer ID for tenant isolation
+            filename: Original filename
+            content: File content as bytes
+            
+        Returns:
+            Relative file path where file was saved
+            
+        Raises:
+            RuntimeError: If file save fails
+        """
+        try:
+            # Create customer-specific directory
+            customer_dir = os.path.join(settings.upload_dir, customer_id)
+            os.makedirs(customer_dir, exist_ok=True)
+            
+            # Generate unique filename
+            file_id = uuid.uuid4().hex[:12]
+            file_extension = os.path.splitext(filename)[1]
+            unique_filename = f"{file_id}{file_extension}"
+            
+            # Full file path
+            file_path = os.path.join(customer_dir, unique_filename)
+            
+            # Write file
+            with open(file_path, 'wb') as f:
+                f.write(content)
+            
+            # Return relative path
+            relative_path = os.path.join(customer_id, unique_filename)
+            logger.info(f"Saved dataset file: {relative_path}")
+            return relative_path
+            
+        except Exception as e:
+            logger.error(f"Failed to save dataset file: {str(e)}")
+            raise RuntimeError(f"Failed to save file: {str(e)}")
+    
+    async def get_dataset_file_path(self, dataset_id: str, customer_id: str) -> str:
+        """
+        Get the full file path for a dataset's CSV file.
+        
+        Args:
+            dataset_id: Dataset ID
+            customer_id: Customer ID for tenant isolation
+            
+        Returns:
+            Full file path
+            
+        Raises:
+            ValueError: If dataset not found
+        """
+        dataset = await self.get_dataset(dataset_id, customer_id)
+        if not dataset:
+            raise ValueError(f"Dataset with ID {dataset_id} not found")
+        
+        return os.path.join(settings.upload_dir, dataset.file_path)
     
     async def get_dataset(self, dataset_id: str, customer_id: str) -> Optional[Dataset]:
         """

@@ -69,8 +69,14 @@ const AdminView: React.FC = () => {
 
   useEffect(() => {
     loadCustomers();
-    loadProfiles();
   }, []);
+
+  useEffect(() => {
+    // Load profiles when customers are loaded
+    if (customers.length > 0) {
+      loadAllProfiles();
+    }
+  }, [customers]);
 
   const loadCustomers = async () => {
     try {
@@ -85,12 +91,17 @@ const AdminView: React.FC = () => {
     }
   };
 
-  const loadProfiles = async () => {
+  const loadAllProfiles = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getApplicationProfiles();
-      setProfiles(data);
+      // Load profiles for all customers
+      const allProfiles: ApplicationProfile[] = [];
+      for (const customer of customers) {
+        const customerProfiles = await apiClient.getApplicationProfiles(customer.id);
+        allProfiles.push(...customerProfiles);
+      }
+      setProfiles(allProfiles);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load application profiles');
     } finally {

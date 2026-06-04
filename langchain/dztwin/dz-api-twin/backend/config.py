@@ -1,8 +1,12 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True
+    )
     # AI Provider
     AI_PROVIDER: str = "bedrock"
     
@@ -44,10 +48,6 @@ class Settings(BaseSettings):
     LOG_FILE: Optional[str] = None  # If set, logs to file
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     LOG_LLM_REQUESTS: bool = True  # Enable detailed LLM request/response logging
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
 _config = None

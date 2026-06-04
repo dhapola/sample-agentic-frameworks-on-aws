@@ -14,6 +14,7 @@ class RAGService:
         self.embeddings = None
         self.collection_name = None
         
+        logger.info(f"RAGService --> {self.enabled}")
         if self.enabled:
             try:
                 self.client = QdrantClient(

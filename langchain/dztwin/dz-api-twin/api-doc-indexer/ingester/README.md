@@ -16,6 +16,29 @@ Vector embeddings and semantic search for API documentation using LangChain and 
 
 ## Quick Setup
 
+### Step 1: Install and Start Qdrant
+
+See [QDRANT_SETUP.md](QDRANT_SETUP.md) for detailed instructions.
+
+**Quick start with Finch (macOS):**
+```bash
+brew install finch
+finch vm init
+finch run -d -p 6333:6333 --name qdrant -v qdrant_storage:/qdrant/storage qdrant/qdrant
+```
+
+**Or with Docker:**
+```bash
+docker run -d -p 6333:6333 --name qdrant -v qdrant_storage:/qdrant/storage qdrant/qdrant
+```
+
+**Verify Qdrant is running:**
+```bash
+python test_qdrant.py
+```
+
+### Step 2: Install Python Dependencies
+
 ```bash
 ./setup.sh  # Unix/macOS
 # or
@@ -36,6 +59,411 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your settings
 ```
+
+## Qdrant Installation
+
+Before running the ingester, you need to install and configure Qdrant vector database. You can use either **Finch** (Docker alternative for macOS) or **Docker**.
+
+### Option 1: Using Finch (Recommended for macOS)
+
+Finch is a lightweight, open-source container runtime that's an excellent Docker alternative for macOS.
+
+#### Install Finch
+
+```bash
+# macOS (using Homebrew)
+brew install finch
+
+# Or download from GitHub
+# https://github.com/runfinch/finch/releases
+```
+
+#### Initialize Finch (First Time Only)
+
+```bash
+finch vm init
+```
+
+This creates the Finch VM. You only need to do this once.
+
+#### Start Qdrant with Finch
+
+```bash
+# Pull and run Qdrant
+finch run -d \
+  -p 6333:6333 \
+  -p 6334:6334 \
+  --name qdrant \
+  -v qdrant_storage:/qdrant/storage \
+  qdrant/qdrant
+```
+
+**Explanation:**
+- `-d` - Run in detached mode (background)
+- `-p 6333:6333` - HTTP API port
+- `-p 6334:6334` - gRPC port (optional)
+- `--name qdrant` - Container name
+- `-v qdrant_storage:/qdrant/storage` - Persistent volume for data
+- `qdrant/qdrant` - Official Qdrant image
+
+#### Verify Qdrant is Running
+
+```bash
+# Check container status
+finch ps
+
+# Expected output:
+# CONTAINER ID   IMAGE            STATUS    PORTS                    NAMES
+# abc123...      qdrant/qdrant    Up        0.0.0.0:6333->6333/tcp   qdrant
+
+# Test HTTP API
+curl http://localhost:6333/
+
+# Or open in browser
+open http://localhost:6333/dashboard
+```
+
+#### Manage Qdrant with Finch
+
+```bash
+# Stop Qdrant
+finch stop qdrant
+
+# Start Qdrant (if stopped)
+finch start qdrant
+
+# Restart Qdrant
+finch restart qdrant
+
+# View logs
+finch logs qdrant
+finch logs -f qdrant  # Follow logs
+
+# Remove container (data persists in volume)
+finch stop qdrant
+finch rm qdrant
+
+# Remove container AND data
+finch stop qdrant
+finch rm qdrant
+finch volume rm qdrant_storage
+```
+
+---
+
+### Option 2: Using Docker
+
+If you prefer Docker or are on Linux/Windows:
+
+#### Install Docker
+
+- **macOS/Windows**: [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- **Linux**: [Docker Engine](https://docs.docker.com/engine/install/)
+
+#### Start Qdrant with Docker
+
+```bash
+# Pull and run Qdrant
+docker run -d \
+  -p 6333:6333 \
+  -p 6334:6334 \
+  --name qdrant \
+  -v qdrant_storage:/qdrant/storage \
+  qdrant/qdrant
+```
+
+#### Verify Qdrant is Running
+
+```bash
+# Check container status
+docker ps
+
+# Test HTTP API
+curl http://localhost:6333/
+
+# Open dashboard
+open http://localhost:6333/dashboard  # macOS
+# or visit http://localhost:6333/dashboard in browser
+```
+
+#### Manage Qdrant with Docker
+
+```bash
+# Stop Qdrant
+docker stop qdrant
+
+# Start Qdrant (if stopped)
+docker start qdrant
+
+# Restart Qdrant
+docker restart qdrant
+
+# View logs
+docker logs qdrant
+docker logs -f qdrant  # Follow logs
+
+# Remove container (data persists in volume)
+docker stop qdrant
+docker rm qdrant
+
+# Remove container AND data
+docker stop qdrant
+docker rm qdrant
+docker volume rm qdrant_storage
+```
+
+---
+
+### Option 3: Using Docker Compose
+
+For easier management, use Docker Compose:
+
+#### Create `docker-compose.yml`
+
+```yaml
+version: '3.8'
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC (optional)
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    restart: unless-stopped
+    environment:
+      # Optional: Configure Qdrant
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+
+volumes:
+  qdrant_storage:
+    driver: local
+```
+
+#### Manage with Docker Compose
+
+```bash
+# Start Qdrant
+docker-compose up -d
+
+# Stop Qdrant
+docker-compose down
+
+# View logs
+docker-compose logs -f qdrant
+
+# Restart Qdrant
+docker-compose restart
+
+# Remove everything (including data)
+docker-compose down -v
+```
+
+---
+
+### Option 4: Qdrant Cloud (Managed Service)
+
+For production deployments, consider [Qdrant Cloud](https://cloud.qdrant.io/):
+
+1. Sign up at https://cloud.qdrant.io/
+2. Create a cluster
+3. Get your cluster URL and API key
+4. Configure in `.env`:
+
+```env
+QDRANT_USE_EMBEDDED=false
+QDRANT_URL=https://xyz-abc123.cloud.qdrant.io
+QDRANT_API_KEY=your-api-key-here
+```
+
+**Pros:**
+- Managed service (no maintenance)
+- High availability
+- Automatic scaling
+- Built-in monitoring
+
+**Cons:**
+- Usage costs
+- Data leaves your infrastructure
+
+---
+
+### Verify Qdrant Installation
+
+After starting Qdrant, verify it's working:
+
+```bash
+# Test with Python
+python -c "
+from qdrant_client import QdrantClient
+client = QdrantClient(url='http://localhost:6333')
+print('✓ Qdrant is running!')
+print(f'Collections: {client.get_collections()}')
+"
+```
+
+**Expected output:**
+```
+✓ Qdrant is running!
+Collections: CollectionsResponse(collections=[])
+```
+
+Or use the test script:
+
+```bash
+python test_qdrant.py
+```
+
+---
+
+### Troubleshooting Qdrant Installation
+
+#### Port Already in Use
+
+```bash
+# Check what's using port 6333
+lsof -i :6333
+
+# Kill the process or use different port
+finch run -d -p 6335:6333 --name qdrant qdrant/qdrant
+
+# Update .env
+QDRANT_URL=http://localhost:6335
+```
+
+#### Container Won't Start
+
+```bash
+# Check logs
+finch logs qdrant
+# or
+docker logs qdrant
+
+# Common issues:
+# 1. Port conflict - use different port
+# 2. Insufficient memory - increase Docker/Finch memory
+# 3. Volume permission issues - check volume permissions
+```
+
+#### Connection Refused
+
+```bash
+# Verify container is running
+finch ps
+# or
+docker ps
+
+# Check if port is exposed
+finch port qdrant
+# or
+docker port qdrant
+
+# Test connection
+curl http://localhost:6333/
+```
+
+#### Finch VM Issues (macOS)
+
+```bash
+# Check VM status
+finch vm status
+
+# Restart VM
+finch vm stop
+finch vm start
+
+# Recreate VM (if corrupted)
+finch vm remove
+finch vm init
+```
+
+#### Data Persistence Issues
+
+```bash
+# Check volume exists
+finch volume ls
+# or
+docker volume ls
+
+# Inspect volume
+finch volume inspect qdrant_storage
+# or
+docker volume inspect qdrant_storage
+
+# Backup volume data
+finch run --rm -v qdrant_storage:/data -v $(pwd):/backup alpine tar czf /backup/qdrant_backup.tar.gz /data
+```
+
+---
+
+### Qdrant Configuration Options
+
+You can customize Qdrant behavior with environment variables:
+
+```bash
+finch run -d \
+  -p 6333:6333 \
+  --name qdrant \
+  -v qdrant_storage:/qdrant/storage \
+  -e QDRANT__SERVICE__HTTP_PORT=6333 \
+  -e QDRANT__SERVICE__GRPC_PORT=6334 \
+  -e QDRANT__LOG_LEVEL=INFO \
+  qdrant/qdrant
+```
+
+**Common options:**
+- `QDRANT__LOG_LEVEL` - Logging level (DEBUG, INFO, WARN, ERROR)
+- `QDRANT__SERVICE__MAX_REQUEST_SIZE_MB` - Max request size (default: 32)
+- `QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS` - Search threads
+
+See [Qdrant Configuration](https://qdrant.tech/documentation/guides/configuration/) for all options.
+
+---
+
+### Production Deployment Recommendations
+
+For production use:
+
+1. **Use Server Mode** (not embedded):
+   ```env
+   QDRANT_USE_EMBEDDED=false
+   QDRANT_URL=http://localhost:6333
+   ```
+
+2. **Enable Persistence**:
+   - Always use volumes (`-v qdrant_storage:/qdrant/storage`)
+   - Backup volumes regularly
+
+3. **Resource Limits**:
+   ```bash
+   finch run -d \
+     -p 6333:6333 \
+     --name qdrant \
+     -v qdrant_storage:/qdrant/storage \
+     --memory="4g" \
+     --cpus="2" \
+     qdrant/qdrant
+   ```
+
+4. **Monitoring**:
+   - Enable Qdrant metrics endpoint
+   - Monitor container logs
+   - Set up health checks
+
+5. **Security**:
+   - Use API keys for authentication
+   - Restrict network access
+   - Enable TLS for production
+
+6. **High Availability**:
+   - Consider Qdrant Cloud
+   - Or set up Qdrant cluster
+   - Use load balancer
+
+---
 
 ## Configuration
 
@@ -64,7 +492,7 @@ COHERE_EMBEDDING_MODEL=embed-english-v3.0
 HUGGINGFACE_MODEL=sentence-transformers/all-MiniLM-L6-v2
 
 # Qdrant Configuration
-QDRANT_USE_EMBEDDED=true
+QDRANT_USE_EMBEDDED=false
 QDRANT_URL=  # Leave empty for embedded mode
 QDRANT_API_KEY=  # Optional for cloud/server mode
 QDRANT_COLLECTION_NAME=api_docs
@@ -95,7 +523,7 @@ MAX_CONCURRENT_BATCHES=5
 
 #### Qdrant Configuration
 
-- `QDRANT_USE_EMBEDDED` (default: `true`) - Use embedded Qdrant
+- `QDRANT_USE_EMBEDDED` (default: `false`) - Use embedded Qdrant
   - `true` - Embedded mode (data in `./qdrant_storage/`)
   - `false` - Server mode (requires `QDRANT_URL`)
 
@@ -368,7 +796,7 @@ Distance: Cosine
 Data stored locally in `./qdrant_storage/`:
 
 ```env
-QDRANT_USE_EMBEDDED=true
+QDRANT_USE_EMBEDDED=false
 ```
 
 **Pros:**

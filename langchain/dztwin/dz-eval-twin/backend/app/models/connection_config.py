@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field, AnyUrl, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class ConnectionConfig(BaseModel):
@@ -13,7 +13,7 @@ class ConnectionConfig(BaseModel):
     a generative AI application for evaluation.
     """
     
-    endpoint: AnyUrl = Field(..., description="Application endpoint URL (supports http, https, ws, wss schemes)")
+    endpoint: str = Field(..., description="Application endpoint URL (supports http, https, ws, wss schemes)")
     authentication: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Authentication configuration (API keys, tokens, etc.)"
@@ -34,6 +34,19 @@ class ConnectionConfig(BaseModel):
         default=None,
         description="Custom HTTP headers to include in requests"
     )
+    
+    @field_validator('endpoint')
+    @classmethod
+    def validate_endpoint(cls, v: str) -> str:
+        """Validate endpoint is a valid URL."""
+        if not v or not v.strip():
+            raise ValueError("Endpoint cannot be empty")
+        v = v.strip()
+        # Basic URL validation
+        if not (v.startswith('http://') or v.startswith('https://') or 
+                v.startswith('ws://') or v.startswith('wss://')):
+            raise ValueError("Endpoint must start with http://, https://, ws://, or wss://")
+        return v
     
     @field_validator('timeout')
     @classmethod

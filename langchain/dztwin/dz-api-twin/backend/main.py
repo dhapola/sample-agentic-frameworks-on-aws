@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 import uuid
 import re
@@ -60,8 +60,9 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=4000, description="User message")
     conversation_id: Optional[str] = Field(None, pattern=r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$', description="UUID v4 conversation ID")
     
-    @validator('message')
-    def sanitize_message(cls, v):
+    @field_validator('message')
+    @classmethod
+    def sanitize_message(cls, v: str) -> str:
         # Remove control characters except newlines, tabs, carriage returns
         v = ''.join(char for char in v if char.isprintable() or char in '\n\r\t')
         
@@ -88,15 +89,19 @@ class ChatRequest(BaseModel):
         
         return v.strip()
     
-    @validator('conversation_id')
-    def validate_conversation_id(cls, v):
+    @field_validator('conversation_id')
+    @classmethod
+    def validate_conversation_id(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return v
         # Additional validation beyond regex
         try:
-            uuid.UUID(v, version=4)
-        except ValueError:
-            raise ValueError("Invalid conversation ID format")
+            parsed_uuid = uuid.UUID(v)
+            # Ensure it's a valid UUID v4
+            if parsed_uuid.version != 4:
+                raise ValueError(f"UUID must be version 4, got version {parsed_uuid.version}")
+        except ValueError as e:
+            raise ValueError(f"Invalid conversation ID format: {str(e)}")
         return v
 
 

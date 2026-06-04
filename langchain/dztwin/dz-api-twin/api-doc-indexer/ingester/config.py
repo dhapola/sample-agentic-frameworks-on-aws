@@ -19,7 +19,7 @@ class IngesterSettings(BaseSettings):
     HUGGINGFACE_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     
     # Qdrant
-    QDRANT_USE_EMBEDDED: bool = True
+    QDRANT_USE_EMBEDDED: bool = False
     QDRANT_URL: Optional[str] = None
     QDRANT_API_KEY: Optional[str] = None
     QDRANT_COLLECTION_NAME: str = "api_docs"
