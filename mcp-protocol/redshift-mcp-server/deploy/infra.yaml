@@ -1,0 +1,216 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Redshift MCP server (NON-PROD). CloudFront (default cert) -> public ALB (HTTP) ->
+  private EC2 (arm64, no containers). Client TLS terminates at CloudFront.
+
+Parameters:
+  VpcId: { Type: AWS::EC2::VPC::Id }
+  PublicSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: ">=2 PUBLIC subnets (different AZs) for the internet-facing ALB."
+  PrivateSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private subnet for the EC2 instance.
+  InstanceType: { Type: String, Default: t4g.xlarge }
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
+  AppPort: { Type: Number, Default: 8080 }
+  S3Bucket: { Type: String, Default: d2-redshift-mcp-server }
+  S3Key: { Type: String, Default: redshift-mcp.tar.gz }
+  Ec2SecurityGroupName: { Type: String, Default: d2-redshift-ec2-sg }
+  AlbSecurityGroupName: { Type: String, Default: d2-redshift-alb-sg }
+  InstanceProfileName: { Type: String, Default: d2-redshift-ec2-instance-profile }
+  CloudFrontPrefixListId:
+    Type: String
+    Description: Managed prefix list id for com.amazonaws.global.cloudfront.origin-facing.
+  RsHost: { Type: String }
+  RsPort: { Type: Number, Default: 5439 }
+  RsDb: { Type: String, Default: dev }
+  RedshiftSecurityGroupId: { Type: String, Default: '' }
+  CwLogGroup: { Type: String, Default: /redshift-mcp/app }
+
+Conditions:
+  HasRedshiftSg: !Not [!Equals [!Ref RedshiftSecurityGroupId, '']]
+
+Resources:
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Ref AlbSecurityGroupName
+      GroupDescription: Public ALB for redshift-mcp (CloudFront origin only)
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourcePrefixListId: !Ref CloudFrontPrefixListId   # only CloudFront edges
+
+  Ec2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Ref Ec2SecurityGroupName
+      GroupDescription: redshift-mcp EC2 (accepts app port from ALB only)
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref AppPort
+          ToPort: !Ref AppPort
+          SourceSecurityGroupId: !Ref AlbSecurityGroup
+
+  RedshiftIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasRedshiftSg
+    Properties:
+      GroupId: !Ref RedshiftSecurityGroupId
+      IpProtocol: tcp
+      FromPort: !Ref RsPort
+      ToPort: !Ref RsPort
+      SourceSecurityGroupId: !Ref Ec2SecurityGroup
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref InstanceProfileName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: s3-get-artifact
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub arn:aws:s3:::${S3Bucket}/${S3Key}
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Ref InstanceProfileName
+      Roles: [!Ref InstanceRole]
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref PrivateSubnetId
+      SecurityGroupIds: [!Ref Ec2SecurityGroup]
+      IamInstanceProfile: !Ref InstanceProfile
+      Tags: [{ Key: Name, Value: redshift-mcp }]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euxo pipefail
+          # 3.1 Python 3.11 (FastMCP needs >=3.10; AL2023 default is 3.9)
+          dnf install -y python3.11 python3.11-pip tar
+          id -u mcp &>/dev/null || useradd --system --no-create-home mcp
+          install -d -o mcp -g mcp /var/log/redshift-mcp /opt/redshift-mcp
+          # 3.2 CloudWatch agent (arm64)
+          dnf install -y "https://amazoncloudwatch-agent-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/amazon_linux/arm64/latest/amazon-cloudwatch-agent.rpm"
+          # 3.3 + 3.4 app + deps
+          aws s3 cp "s3://${S3Bucket}/${S3Key}" /tmp/app.tar.gz --region ${AWS::Region}
+          tar -xzf /tmp/app.tar.gz -C /opt/redshift-mcp
+          python3.11 -m venv /opt/redshift-mcp/.venv
+          /opt/redshift-mcp/.venv/bin/pip install --no-cache-dir -r /opt/redshift-mcp/requirements.txt
+          chown -R mcp:mcp /opt/redshift-mcp
+          cat >/etc/redshift-mcp.env <<EOF
+          RS_HOST=${RsHost}
+          RS_PORT=${RsPort}
+          RS_DB=${RsDb}
+          QUERY_ROW_CAP=1000
+          STATEMENT_TIMEOUT_MS=30000
+          ALLOWED_ORIGINS=
+          LOG_FILE=/var/log/redshift-mcp/app.log
+          EOF
+          cat >/etc/systemd/system/redshift-mcp.service <<EOF
+          [Unit]
+          Description=Redshift MCP Server
+          After=network-online.target
+          Wants=network-online.target
+          [Service]
+          User=mcp
+          EnvironmentFile=/etc/redshift-mcp.env
+          WorkingDirectory=/opt/redshift-mcp
+          ExecStart=/opt/redshift-mcp/.venv/bin/uvicorn server:app --host 0.0.0.0 --port ${AppPort} --workers 2
+          LogsDirectory=redshift-mcp
+          Restart=always
+          RestartSec=5
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          systemctl daemon-reload
+          systemctl enable --now redshift-mcp
+          # 3.5 CloudWatch agent config -> push MCP log to CloudWatch Logs
+          cat >/opt/aws/amazon-cloudwatch-agent/etc/cw-redshift-mcp.json <<EOF
+          {"logs":{"logs_collected":{"files":{"collect_list":[{"file_path":"/var/log/redshift-mcp/app.log","log_group_name":"${CwLogGroup}","log_stream_name":"{instance_id}","retention_in_days":30}]}}}}
+          EOF
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/cw-redshift-mcp.json
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${AWS::StackName}-alb
+      Type: application
+      Scheme: internet-facing
+      Subnets: !Ref PublicSubnetIds
+      SecurityGroups: [!Ref AlbSecurityGroup]
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${AWS::StackName}-tg
+      VpcId: !Ref VpcId
+      Protocol: HTTP
+      Port: !Ref AppPort
+      TargetType: instance
+      HealthCheckPath: /healthz
+      Matcher: { HttpCode: '200' }
+      Targets: [{ Id: !Ref Instance }]
+
+  HttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: redshift-mcp (non-prod)
+        Origins:
+          - Id: alb
+            DomainName: !GetAtt LoadBalancer.DNSName
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+              HTTPPort: 80
+        DefaultCacheBehavior:
+          TargetOriginId: alb
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad        # CachingDisabled
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 # AllViewer (forwards X-Redshift-* etc.)
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true                          # trusted *.cloudfront.net cert
+
+Outputs:
+  CloudFrontDomain:
+    Value: !GetAtt Distribution.DomainName
+  McpEndpoint:
+    Value: !Sub https://${Distribution.DomainName}/mcp
+  AlbDnsName:
+    Value: !GetAtt LoadBalancer.DNSName
