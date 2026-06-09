@@ -1,0 +1,35 @@
+# Documentation and config — not needed in container
+*.md
+prompt.md
+design.md
+aws_config.md
+
+# Version control
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+.kiro
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.venv
+venv
+env
+
+# Local test artefacts
+test_local.py
+
+# Build / scripts (not needed in image)
+scripts/
+iam/
+agentcore/
+
+# OS
+.DS_Store
+Thumbs.db

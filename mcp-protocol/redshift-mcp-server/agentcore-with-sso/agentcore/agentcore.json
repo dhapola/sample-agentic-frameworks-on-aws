@@ -1,0 +1,22 @@
+{
+  "agents": [
+    {
+      "name": "redshift-mcp-server",
+      "description": "MCP server for querying Redshift via Redshift Data API with per-user IAM Identity Center authentication",
+      "entrypoint": "mcp_server.py",
+      "region": "ap-south-1",
+      "protocol": "MCP",
+      "authorizerType": "AWS_IAM",
+      "networkMode": "PUBLIC",
+      "environmentVariables": {
+        "REDSHIFT_CLUSTER_ID": "sample-redshift-cluster-mcp",
+        "REDSHIFT_DATABASE": "dev",
+        "AWS_REGION": "ap-south-1"
+      },
+      "lifecycleConfiguration": {
+        "idleRuntimeSessionTimeout": 900,
+        "maxLifetime": 28800
+      }
+    }
+  ]
+}
