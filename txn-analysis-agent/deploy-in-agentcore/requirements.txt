@@ -1,0 +1,4 @@
+# boto3 must be new enough to expose the AgentCore services:
+#   - bedrock-agentcore-control (CreateAgentRuntime / UpdateAgentRuntime)
+#   - bedrock-agentcore         (InvokeAgentRuntime)
+boto3>=1.40.0

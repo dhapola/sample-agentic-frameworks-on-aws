@@ -1,0 +1,8 @@
+target/
+.git/
+.idea/
+*.iml
+agentcore/__pycache__/
+agentcore/.venv/
+agentcore/*.json
+.DS_Store
