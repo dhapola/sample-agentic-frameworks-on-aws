@@ -42,7 +42,6 @@ TRANSACTION_IDS = ["txn_001", "txn_002", "txn_003", "txn_004", "txn_005"]
 # Model pricing for ap-south-1 (USD per 1M tokens): {model_id: (input_price, output_price)}
 MODEL_PRICING = {
     "global.anthropic.claude-haiku-4-5-20251001-v1:0": (1.00, 5.00),
-    "apac.anthropic.claude-sonnet-4-20250514-v1:0": (3.00, 15.00),
     "global.anthropic.claude-sonnet-4-6": (3.00, 15.00),
     "global.anthropic.claude-opus-4-8": (5.00, 25.00),
     "apac.amazon.nova-pro-v1:0": (1.48, 1.48),
@@ -52,6 +51,8 @@ MODEL_PRICING = {
     "moonshotai.kimi-k2.5": (0.72, 3.60),
     "qwen.qwen3-next-80b-a3b": (0.18, 1.41),
     "zai.glm-5": (1.20, 3.84),
+    "openai.gpt-oss-20b-1:0": (0.08, 0.35),
+    "openai.gpt-oss-120b-1:0": (0.18, 0.71)
 }
 
 
